@@ -13,19 +13,24 @@ export type A = {
 
 type Q = {
 	name: string
+};
+
+type mutationArgs = {
+	id: number
+	name: string
 }
 
 export default class {
 
-	// static Mutation = {
-	// 	async updateUser(name: string, id: string){
-	// 		return {
-	// 			id,
-	// 			name,
-	// 			nullName: name as string|null
-	// 		}
-	// 	}
-	// }
+	static Mutation = {
+		async updateUser(_, opts: mutationArgs){
+			return {
+				id: opts.id,
+				name: opts.name,
+				nullName: opts.name as string|null
+			}
+		}
+	}
 
 	static Query = {
 
@@ -39,68 +44,68 @@ export default class {
 		// restParam(_, {...rest}){},
 
 
-		// user(_, tp, ctx){
-		// 	let a = {
-		// 		id: tp.id,
-		// 		age: tp.nest.age as number,
-		// 		name: "userName" as string
-		// 	};
-		// 	return a as typeof a|null;
-		// },
-		// async emptyAsync(){},
+		user(_, tp, ctx){
+			let a = {
+				id: tp.id,
+				age: tp.nest.age as number,
+				name: "userName" as string
+			};
+			return a as typeof a|null;
+		},
+		async emptyAsync(){},
 
-		// multiReturnWithExplicit(_, tp, ctx){
-		// 	if(true){
-		// 		return null;
-		// 	}
-		// 	return "hello" as string;
-		// },
-		// multiReturnWithoutExplicit(_, tp, ctx){
-		// 	if(true){
-		// 		return null;
-		// 	}
-		// 	return "hello" as string;
-		// },
+		multiReturnWithExplicit(_, tp, ctx){
+			if(true){
+				return null;
+			}
+			return "hello" as string;
+		},
+		multiReturnWithoutExplicit(_, tp, ctx){
+			if(true){
+				return null;
+			}
+			return "hello" as string;
+		},
 
-		// explicitStringOrNull(_, tp, ctx){
-		// 	return "hello" as string|null
-		// },
-		// explicitStringOrUndefined(_, tp, ctx){
-		// 	return "hello" as string|undefined;
-		// },
-		// string(_, tp, ctx){
-		// 	return "hello";
-		// },
-		// explicitString(_, tp, ctx){
-		// 	return "hello" as string;
-		// },
+		explicitStringOrNull(_, tp, ctx){
+			return "hello" as string|null
+		},
+		explicitStringOrUndefined(_, tp, ctx){
+			return "hello" as string|undefined;
+		},
+		string(_, tp, ctx){
+			return "hello";
+		},
+		explicitString(_, tp, ctx){
+			return "hello" as string;
+		},
 
-		// number(){
-		// 	return 23;
-		// },
+		number(){
+			return 23;
+		},
 
-		// null(_, tp, ctx){
-		// 	return null;
-		// },
-		// undefined(_, tp, ctx){
-		// 	return undefined;
-		// },
-		// void(_, tp, ctx){},
-		// emptyReturn(){return},
-		// explicitNullOrUndefined(){
-		// 	return null as null|undefined;
-		// },
+		null(_, tp, ctx){
+			return null;
+		},
+		undefined(_, tp, ctx){
+			return undefined;
+		},
+		void(_, tp, ctx){},
+		emptyReturn(){return},
+		explicitNullOrUndefined(){
+			return null as null|undefined;
+		},
 
-		// noArgs(){
-		// 	return 22;
-		// },
-		// typeOrNull(_, tp, ctx){
-		// 	let a : Q|null = null as any;
-		// 	return a;
-		// },
-		// nonNulltype(_, tp, ctx): Q{
-		// 	return undefined as any;
-		// },
+		noArgs(){
+			return 22;
+		},
+		typeOrNull(_, tp, ctx){
+			let a : Q|null = null as any;
+			return a;
+		},
+		nonNulltype(_, tp, ctx): Q{
+			return undefined as any;
+		},
 	}
 
 

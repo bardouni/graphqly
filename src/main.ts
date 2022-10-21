@@ -107,7 +107,7 @@ export default function run(files: string[]){
 																		throw "roMIf6wuendvPBI3JeV4";
 																	}
 
-																	let k = typeFromTypeAnotationParent("--", member.typeAnnotation!.typeAnnotation, "input");
+																	let k = typeFromTypeAnotation("--", member.typeAnnotation!.typeAnnotation, "input");
 
 																	if(index > 0){
 																		out += ", ";
@@ -124,6 +124,10 @@ export default function run(files: string[]){
 														/**
 														 * do nothing
 														 * */
+													} else if (argsType.type === "TSTypeReference") {
+														out += "(";
+														out += ")";
+														// argsType.typeName.name
 													} else {
 														console.log(argsType);
 														throw "krDaV80luhuyPvQg";
@@ -140,7 +144,7 @@ export default function run(files: string[]){
 												throw "hO2QLKFulgbD";
 											}
 											
-											out += typeFromTypeAnotationParent(
+											out += typeFromTypeAnotation(
 												queryKey + queryType + "Object",
 												item.returnType.typeAnnotation,
 												"type"
@@ -157,12 +161,12 @@ export default function run(files: string[]){
 						/**
 						 * Generate types for both input and object
 						 * */
-						typeFromTypeAnotationParent(
+						typeFromTypeAnotation(
 							node.id.name+ "Input",
 							node.typeAnnotation,
 							"input"
 						);
-						typeFromTypeAnotationParent(
+						typeFromTypeAnotation(
 							node.id.name+ "Object",
 							node.typeAnnotation,
 							"type"
@@ -175,11 +179,12 @@ export default function run(files: string[]){
 
 	const registredTypes: {[key: string]: string} = {};
 
-	function typeFromTypeAnotationParent(
+	function typeFromTypeAnotation(
 		q: string,
 		node: TSESTree.TypeNode,
 		gType: "input"|"type"
 	){
+		let res: string;
 		if(node.type === "TSUnionType"){
 			let types = lodash.uniq(
 				node.types.map(e => typeFromTypeAnotation(q, e, gType)).flat()
@@ -190,43 +195,27 @@ export default function run(files: string[]){
 			}
 
 			if(types.includes("Any")){
-				return "Any";
+				res = "Any";
 			}
 
-			return lodash.without(types, "null")[0];
-		} else {
-			let type = typeFromTypeAnotation(q, node, gType);
-			/**
-			 * i belive this shouldnt be allowed
-			 * */
-			if(type === "null"){
-				return "Any";
-			}
+			res = lodash.without(types, "null")[0].slice(0, -1);
 
-			return type + "!"
-		}
-	}
-
-	function typeFromTypeAnotation(
-		q: string,
-		node: TSESTree.TypeNode,
-		gType: "input"|"type"
-	){
-		if(node.type === "TSStringKeyword"){
-			return "String";
+			return res;
+		} if(node.type === "TSStringKeyword"){
+			res = "String!";
 		} else if(node.type === "TSNumberKeyword"){
-			return "Float";
+			res = "Float!";
 		} else if (node.type === "TSNullKeyword"){
-			return "null";
+			res = "null!";
 		} else if (node.type === "TSVoidKeyword"){
-			return "Any";
+			res = "Any!";
 		} else if (node.type === "TSUndefinedKeyword"){
-			return "Any";
+			res = "Any!";
 		} else if (node.type === "TSAnyKeyword"){
-			return "Any";
+			res = "Any!";
 		} else if (node.type === "TSTypeLiteral"){
 			handleMembers(q, node, gType)
-			return q;
+			res = q;
 		} else if (node.type === "TSTypeReference"){
 			if(!("name" in node.typeName)){
 				throw "k1Xgh88"
@@ -237,18 +226,25 @@ export default function run(files: string[]){
 					throw "gJjnwG40egNP4Y70Z9x5";
 				}
 				if(!node.typeParameters.params.length){
-					return "Any";
+					res = "Any!";
 				}
-				return typeFromTypeAnotation(
+				res = typeFromTypeAnotation(
 					q,
 					node.typeParameters.params[0],
 					gType
 				);
 			}
-			return node.typeName.name
+			res = node.typeName.name + "!";
+		} else {
+			console.log(node);
+			throw "1ujtneIO2LlTiKAqIQTC"
 		}
-		console.log(node);
-		throw "1ujtneIO2LlTiKAqIQTC"
+
+		if(res === "null!"){
+			return "Any";
+		}
+
+		return res;
 	}
 
 	function handleMembers(typeName: string, node: TSESTree.TSTypeLiteral, gType: "input"|"type"){
@@ -269,7 +265,7 @@ export default function run(files: string[]){
 				if(!cv.typeAnnotation){
 					throw "ADMUOgOyrn";
 				}
-				let type = typeFromTypeAnotationParent(typeName + "_" + cv.key.name, cv.typeAnnotation.typeAnnotation, gType);
+				let type = typeFromTypeAnotation(typeName + "_" + cv.key.name, cv.typeAnnotation.typeAnnotation, gType);
 
 				registredTypes[typeName] += "\n\t" + cv.key.name + ": " +  type;
 			}
