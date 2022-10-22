@@ -8,12 +8,16 @@
     "watch": "nodemon ./bundle/src/main2.js",
     "api-extractor": "api-extractor",
     "t": "typescript-json-schema",
-    "r": "nodemon bundle/src/run.js ./src/schema.ts"
+    "r": "nodemon bundle/src/run.js ./src/schema.ts",
+    "mocha": "mocha",
+    "test": "yarn mocha tests/**.test.js"
   },
   "dependencies": {
     "@microsoft/api-extractor": "^7.33.4",
     "@types/node": "^18.11.2",
     "@typescript-eslint/typescript-estree": "^5.40.1",
+    "@typescript-eslint/visitor-keys": "^5.40.1",
+    "chai": "^4.3.6",
     "lodash": "^4.17.21",
     "mocha": "^10.1.0",
     "nodemon": "^2.0.20",
