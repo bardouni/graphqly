@@ -7,10 +7,11 @@ import lodash from "lodash";
 import {simpleTraverse} from "./travers";
 import fs from "fs";
 import {log} from "./utils";
+import path from "path";
 
 const defaultOptions = {
 	readFile(fname){
-		return fs.readFileSync(fname, "utf-8");
+		return fs.readFileSync(path.resolve(process.cwd(), fname), "utf-8");
 	}
 };
 
@@ -85,6 +86,14 @@ export default function run(
 		);
 	}
 
+	function typeFromTypeAnotationWithEmptyCheck(...args: Parameters<typeof typeFromTypeAnotation>){
+		let type = typeFromTypeAnotation(...args);
+		if(type === "null"){
+			return "Any";
+		}
+		return type;
+	}
+
 	function typeFromTypeAnotation(
 		typeName: string,
 		node: TSESTree.TypeNode,
@@ -97,8 +106,10 @@ export default function run(
 			if(types.length > 2){
 				throw "GW6aX84OhSQHFjqUJvUL";
 			}
-			res = lodash.without(types, "null!")[0].slice(0, -1);
-			return res;
+			if(types.length === 1 && types.includes("null")){
+				return "Any";
+			}
+			res = lodash.without(types, "null")[0].slice(0, -1);
 		} else if (node.type === "TSStringKeyword"){
 			res = "String!";
 		} else if (node.type === "TSBooleanKeyword"){
@@ -106,11 +117,11 @@ export default function run(
 		} else if (node.type === "TSNumberKeyword"){
 			res = "Float!";
 		} else if (node.type === "TSNullKeyword"){
-			res = "null!";
+			res = "null";
 		} else if (node.type === "TSVoidKeyword"){
-			res = "Any!";
+			res = "null";
 		} else if (node.type === "TSUndefinedKeyword"){
-			res = "Any!";
+			res = "null";
 		} else if (node.type === "TSAnyKeyword"){
 			res = "Any!";
 		} else if (node.type === "TSTypeLiteral"){
@@ -238,7 +249,7 @@ export default function run(
 
 						}
 						
-						const fieldType = typeFromTypeAnotation(
+						const fieldType = typeFromTypeAnotationWithEmptyCheck(
 							typeName + "__" + node.key.name + lodash.capitalize(gType),
 							fieldTypeObj,
 							gType
@@ -270,7 +281,7 @@ export default function run(
 				if(!node.typeParameters.params.length){
 					res = "Any!";
 				}
-				res = typeFromTypeAnotation(typeName, node.typeParameters.params[0], gType);
+				res = typeFromTypeAnotationWithEmptyCheck(typeName, node.typeParameters.params[0], gType);
 			} else {
 				res = node.typeName.name + lodash.capitalize(gType) + "!";
 			}
@@ -327,5 +338,4 @@ export default function run(
 	return TypesRegistery.types
 		.filter(type => type.published)
 		.map(type => type.content).concat(`scalar Any`).join("\n");
-
 }

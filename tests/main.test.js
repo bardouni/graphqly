@@ -68,6 +68,33 @@ describe('Main', function () {
 		);
 	});
 
+	it('Any', function () {
+		let schema = run(
+			"file.ts",
+			{
+				readFile(){
+					return `
+						export default class {
+							static Query = {
+								any(): any{
+									return "";
+								}
+							}
+						}
+					`
+				}
+			}
+		);
+		expect(schema).to.equal(
+			dedent`
+				type Query {
+					any: Any!
+				}
+				scalar Any
+			`
+		);
+	});
+
 	it('Async', function () {
 		let schema = run(
 			"file.ts",
@@ -99,7 +126,7 @@ describe('Main', function () {
 				}
 				type Query {
 					string: String!
-					void: Any!
+					void: Any
 					type: QType!
 					literal: Query__literalType!
 				}
@@ -395,7 +422,6 @@ describe('Main', function () {
 		);
 		expect(schema).to.equal(
 			dedent`
-				scalar Any
 				type Query {
 					null: Any
 					undefined: Any
@@ -403,6 +429,7 @@ describe('Main', function () {
 					emptyReturn: Any
 					explicitNullOrUndefined: Any
 				}
+				scalar Any
 			`
 		);
 	});
@@ -612,7 +639,7 @@ describe('Main', function () {
 		expect(schema).to.equal(
 			dedent`
 				type Query {
-					assignSimpleParam: Any!
+					assignSimpleParam: Any
 				}
 				scalar Any
 			`
