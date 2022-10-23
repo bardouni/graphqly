@@ -6,6 +6,7 @@ import {
 import lodash from "lodash";
 import {simpleTraverse} from "./travers";
 import fs from "fs";
+import {log} from "./utils";
 
 const defaultOptions = {
 	readFile(fname){
@@ -20,6 +21,7 @@ export default function run(
 	} = defaultOptions
 ){
 
+	const basePath = process.cwd();
 	let out = `scalar Any`;
 	let leaveRegistry = new Map();
 	let openDefaultClass = false,
@@ -88,37 +90,19 @@ export default function run(
 		}
 	}
 
-	const basePath = process.cwd();
-
-	function compile(fname: string, options: ts.CompilerOptions) {
-	  // Create a Program with an in-memory emit
-	  const host = ts.createCompilerHost(options);
-	  host.writeFile = function (fileName: string, contents: string){
-	  	// console.log(contents);
-	  	handleDTS(fileName, contents);
-	  }
-	  let originalFileExist = host.fileExists;
-	  host.fileExists = function (filename){
-	  	return true;
-	  	// console.log(basePath + "/" + filename.slice());
-	  	return originalFileExist(filename);
-	  }
-	  host.readFile = readFile;
-	  // Prepare and emit the d.ts files
-	  const program = ts.createProgram([fname], options, host);
-	  let em = program.emit();
-	  if(em.emitSkipped){
-	  	console.log(em);
-	  }
-	}
-
 	function handleDTS(fileName: string, content: string){
-		// console.log(content, "\n---------------")
+		if(fileName.endsWith(".js")){
+			return;
+		}
+		// console.group(fileName)
+		// log(content)
+		// console.groupEnd();
 		simpleTraverse(
 			parse(content),
 			{
 				enter(node, parent){
 					if(node.type === "TSTypeAliasDeclaration"){
+						// log("type", node)
 						if(node.typeAnnotation.type === "TSTypeLiteral"){
 							let tname = node.id.name;
 							typeFromTypeAnotation(tname + "Type", node.typeAnnotation, "type");
@@ -133,6 +117,9 @@ export default function run(
 						}
 					} else if (node.type === "PropertyDefinition"){
 						if(openDefaultClass){
+							if(!("name" in node.key)){
+								throw "2kHF907ZmUjL2c40mx";
+							}
 							if(["Query", "Mutation"].includes(node.key.name)){
 								openQuery = true;
 								out += "\ntype " + node.key.name + "{";
@@ -144,6 +131,9 @@ export default function run(
 						}
 					} else if (node.type === "TSMethodSignature"){
 						if(openQuery){
+							if(!("name" in node.key)){
+								throw "X0z4yp";
+							}
 							out += "\n\t" + node.key.name;
 
 							/**
@@ -178,6 +168,9 @@ export default function run(
 									if(argsType.type === "TSTypeLiteral"){
 										if(argsType.members.length){
 											if(paramsType.typeAnnotation.typeAnnotation.type === "TSTypeLiteral"){
+												if(!("name" in node.key)){
+													throw "syxhi";
+												}
 												const type = TypesRegistery.typeFromLiteral(node.key.name + "Input", paramsType.typeAnnotation.typeAnnotation, "input");
 												const params = type.members.map(member => member.field+ ": " + member.type);
 												if(params.length){
@@ -204,19 +197,23 @@ export default function run(
 											out += "(" + params.join(", ") + ")";
 										}
 									} else {
-										console.log(argsType);
+										log(argsType);
 										throw "krDaV80luhuyPvQg";
 									}
 								} else {
-									console.dir(paramsType, {depth: 10})
+									log(paramsType, {depth: 10})
 									throw "zUBP";
 								}
+							}
+
+							if(!("name" in node.key)){
+								throw "HRxjxhnVgd";
 							}
 
 							out += ": " + typeFromTypeAnotation(node.key.name + "Type", node.returnType!.typeAnnotation, "type");
 						}
 					}
-					// console.log(node);
+					// log(node);
 				},
 				leave(node, parent){
 					let leave = leaveRegistry.get(node);
@@ -236,19 +233,16 @@ export default function run(
 		let res: string;
 		if(node.type === "TSUnionType"){
 			let types = lodash.uniq( node.types.map(e => typeFromTypeAnotation(q, e, gType)).flat() );
-
 			if(types.length > 2){
 				throw "GW6aX84OhSQHFjqUJvUL";
 			}
-
 			res = lodash.without(types, "null!")[0].slice(0, -1);
-
 			return res;
-		} else if(node.type === "TSStringKeyword"){
+		} else if (node.type === "TSStringKeyword"){
 			res = "String!";
-		}  else if(node.type === "TSBooleanKeyword"){
+		} else if (node.type === "TSBooleanKeyword"){
 			res = "Boolean!";
-		} else if(node.type === "TSNumberKeyword"){
+		} else if (node.type === "TSNumberKeyword"){
 			res = "Float!";
 		} else if (node.type === "TSNullKeyword"){
 			res = "null!";
@@ -284,27 +278,50 @@ export default function run(
 		} else if (node.type === "TSLiteralType") {
 			// to convert this to enum later
 			throw "AA8zMEQhfMCpNkBp"
+		} else if (node.type === "TSImportType") {
+			if(!node.qualifier){
+				throw "nhhdpkO727UM";
+			}
+			if(!("name" in node.qualifier)){
+				throw "PWyRs8UmkFkfstu1lm"
+			}
+			res = node.qualifier.name + lodash.capitalize(gType) + "!" ;
 		} else {
-			console.log(node);
+			log(node);
 			throw "1ujtneIO2LlTiKAqIQTC"
 		}
-
 		return res;
 	}
 
-	compile(file, {
-	  allowJs: true,
+	const options: ts.CompilerOptions = {
 	  declaration: true,
+	  skipLibCheck: true,
 	  emitDeclarationOnly: true,
 	  strictNullChecks: true,
-	  noImplicitReturns: true,
-	  esModuleInterop: true,
-	  skipLibCheck: true,
-	  forceConsistentCasingInFileNames: true,
-	  resolveJsonModule: true,
-	  // traceResolution: true,
-	  moduleResolution: 2
-	});
+	};
+
+	// Create a Program with an in-memory emit
+	const host = ts.createCompilerHost(options);
+	host.writeFile = handleDTS;
+	let originalFileExist = host.fileExists;
+	host.fileExists = function (filename){
+		return true;
+		// log(basePath + "/" + filename.slice());
+		return originalFileExist(filename);
+	}
+	host.readFile = readFile;
+
+	const program = ts.createProgram(
+		[file],
+		options,
+		host
+	);
+
+	const emitResult = program.emit();
+
+	if(emitResult.emitSkipped){
+		log(emitResult);
+	}
 
 	return TypesRegistery.types.map(type => type.content).concat(out).join("\n");
 

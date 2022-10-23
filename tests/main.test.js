@@ -23,7 +23,7 @@ describe('Main', function () {
 
   it('Scalars', function () {
   	let schema = run(
-  		"",
+  		"file.ts",
   		{
   			readFile(){
   				return `
@@ -159,6 +159,53 @@ describe('Main', function () {
   			type Query{
   				custom: ObjType!
   				optionalCustom: ObjType
+  			}
+  		`
+  	);
+  });
+
+  it('External module', function () {
+  	let schema = run(
+  		"file.ts",
+  		{
+  			readFile: readFiles({
+		  		"file.ts": `
+						import {resolvers} from "./other";
+						export default class {
+							static Query = {
+								hi(): string => void,
+								...resolvers
+							}
+						}
+					`,
+					[process.cwd() + "/other.ts"]:`
+						export type User = {
+							name: string
+						}
+						export const resolvers = {
+							user() : User => void
+						}
+						export default class {
+							static Query = {
+								ignore(){}
+							}
+						}
+					`
+		  	})
+  		}
+  	);
+  	expect(schema).to.equal(
+  		dedent`
+  			type UserType {
+  				name: String!
+  			}
+  			input UserInput {
+  				name: String!
+  			}
+  			scalar Any
+  			type Query{
+  				user: UserType!
+  				hi: String!
   			}
   		`
   	);
