@@ -22,78 +22,28 @@ export default function run(
 ){
 
 	const basePath = process.cwd();
-	let out = `scalar Any`;
 	let leaveRegistry = new Map();
 	let openDefaultClass = false,
 			openQuery = false;
 
+	type Ty = {
+		name: string
+		content: string
+		published: boolean
+		members: {field: string, type: string}[]
+	};
+
 	class TypesRegistery {
-		static types = [] as {
-			name: string,
-			content: string,
-			members: {field: string, type: string}[]
-		}[];
-
-		static typeFromLiteral(typeName: string, node: TSESTree.TSTypeLiteral, gType: "input"|"type"){
-
-			let type = TypesRegistery.types.find(t => t.name === typeName);
-			if(type){
-				return type;
-			}
-
-			let ndx = TypesRegistery.types.push({
-				name: typeName,
-				content: gType + " "+ typeName + " {",
-				members: []
-			}) - 1;
-
-			type = TypesRegistery.types[ndx]!;
-
-			node.members.forEach(
-				function (cv){
-
-					if(!("key" in cv)){
-						throw "tcGXA2AdwrwOhnPBpZ";
-					}
-					if(!("name" in cv.key)){
-						throw "tcGXA2AdwrwOhnPBpZ";
-					}
-					if(!("typeAnnotation" in cv)){
-						throw "0Nt3XDHQedj1eaOXr6LY";
-					}
-					if(!cv.typeAnnotation){
-						throw "ADMUOgOyrn";
-					}
-
-					let fieldType = typeFromTypeAnotation(
-						typeName + "__" + cv.key.name + lodash.capitalize(gType),
-						cv.typeAnnotation.typeAnnotation,
-						gType
-					);
-
-					type!.content += "\n\t" + cv.key.name + ": " +  fieldType;
-
-					type!.members.push({
-						field: cv.key.name,
-						type: fieldType
-					});
-				}
-			);
-
-			type.content += "\n}";
-
-			return type;
-		}
-
+		static types = [] as Ty[];
 		static findType(name: string){
 			return TypesRegistery.types.find(t => t.name === name)!;
 		}
 	}
 
 	function handleDTS(fileName: string, content: string){
-		if(fileName.endsWith(".js")){
-			return;
-		}
+		// if(fileName.endsWith(".js")){
+		// 	return;
+		// }
 		// console.group(fileName)
 		// log(content)
 		// console.groupEnd();
@@ -120,97 +70,7 @@ export default function run(
 							if(!("name" in node.key)){
 								throw "2kHF907ZmUjL2c40mx";
 							}
-							if(["Query", "Mutation"].includes(node.key.name)){
-								openQuery = true;
-								out += "\ntype " + node.key.name + "{";
-								leaveRegistry.set(node, () => {
-									out += "\n}";
-									openQuery = false;
-								})
-							}
-						}
-					} else if (node.type === "TSMethodSignature"){
-						if(openQuery){
-							if(!("name" in node.key)){
-								throw "X0z4yp";
-							}
-							out += "\n\t" + node.key.name;
-
-							/**
-							 * handle params
-							 * */
-							let params = node.params;
-
-							if(params.length >= 2){
-								let firstType = node.params[0];
-								/**
-								 * basic types are not supported
-								 * only objects here
-								 * */
-								if(
-									(firstType.type === "Identifier") &&
-									(firstType.name === "this")
-								){
-									params = params.slice(1);
-								}
-							}
-
-							if(params.length >= 2){
-								let paramsType = params[1];
-								if(paramsType.type === "Identifier"){
-									if(!paramsType.typeAnnotation){
-										throw "Sj696owBXJ";
-									}
-									let argsType = paramsType.typeAnnotation.typeAnnotation;
-									/**
-									 * here we should take type members and use as args
-									 * */
-									if(argsType.type === "TSTypeLiteral"){
-										if(argsType.members.length){
-											if(paramsType.typeAnnotation.typeAnnotation.type === "TSTypeLiteral"){
-												if(!("name" in node.key)){
-													throw "syxhi";
-												}
-												const type = TypesRegistery.typeFromLiteral(node.key.name + "Input", paramsType.typeAnnotation.typeAnnotation, "input");
-												const params = type.members.map(member => member.field+ ": " + member.type);
-												if(params.length){
-													out += "(" + params.join(", ") + ")";
-												}
-											} else {
-												throw "2OKALkRn6dHU";
-											}
-										}
-									} else if (argsType.type === "TSAnyKeyword") {
-										/**
-										 * do nothing
-										 * */
-									} else if (argsType.type === "TSTypeReference") {
-										if(!("name" in argsType.typeName)){
-											throw "IB7JQCcPDzXxYQcee7"
-										}
-										/**
-										 * type should always exist
-										 * */
-										const type = TypesRegistery.findType(argsType.typeName.name + "Input");
-										const params = type.members.map(member => member.field + ": " + member.type);
-										if(params.length){
-											out += "(" + params.join(", ") + ")";
-										}
-									} else {
-										log(argsType);
-										throw "krDaV80luhuyPvQg";
-									}
-								} else {
-									log(paramsType, {depth: 10})
-									throw "zUBP";
-								}
-							}
-
-							if(!("name" in node.key)){
-								throw "HRxjxhnVgd";
-							}
-
-							out += ": " + typeFromTypeAnotation(node.key.name + "Type", node.returnType!.typeAnnotation, "type");
+							typeFromTypeAnotation(node.key.name, node.typeAnnotation!.typeAnnotation!, "type");
 						}
 					}
 					// log(node);
@@ -226,13 +86,14 @@ export default function run(
 	}
 
 	function typeFromTypeAnotation(
-		q: string,
+		typeName: string,
 		node: TSESTree.TypeNode,
-		gType: "input"|"type"
+		gType: "input"|"type",
+		published = true
 	){
 		let res: string;
 		if(node.type === "TSUnionType"){
-			let types = lodash.uniq( node.types.map(e => typeFromTypeAnotation(q, e, gType)).flat() );
+			let types = lodash.uniq( node.types.map(e => typeFromTypeAnotation(typeName, e, gType)).flat() );
 			if(types.length > 2){
 				throw "GW6aX84OhSQHFjqUJvUL";
 			}
@@ -253,8 +114,150 @@ export default function run(
 		} else if (node.type === "TSAnyKeyword"){
 			res = "Any!";
 		} else if (node.type === "TSTypeLiteral"){
-			TypesRegistery.typeFromLiteral(q, node, gType)
-			res = q + "!";
+
+			/**
+			 * i belive this should never return true
+			 * because TSTypeLiteral is always generated and uniqe to the parentFieldName
+			 * */
+			let foundType = TypesRegistery.types.find(t => t.name === typeName);
+
+			if(!foundType){
+				
+				let ndx = TypesRegistery.types.push({
+					name: typeName,
+					content: gType + " "+ typeName + " {",
+					published,
+					members: []
+				}) - 1;
+
+				let type = TypesRegistery.types[ndx]!;
+
+				node.members.forEach(
+					function (node){
+
+						if(!("key" in node)){
+							throw "tcGXA2AdwrwOhnPBpZ";
+						}
+						if(!("name" in node.key)){
+							throw "tcGXA2AdwrwOhnPBpZ";
+						}
+
+						let fieldTypeObj;
+
+						type.content += "\n\t" + node.key.name;
+
+						if(node.type === "TSMethodSignature"){
+
+							if(!("name" in node.key)){
+								throw "X0z4yp";
+							}
+
+							/**
+							 * Don't include params in input types
+							 * */
+
+							if(gType === "type"){
+
+								/**
+								 * handle params
+								 * */
+								let params = node.params;
+
+								if(params.length >= 2){
+									let firstType = node.params[0];
+									/**
+									 * basic types are not supported
+									 * only objects here
+									 * */
+									if(
+										(firstType.type === "Identifier") &&
+										(firstType.name === "this")
+									){
+										params = params.slice(1);
+									}
+								}
+
+								if(params.length >= 2){
+									let paramsType = params[1];
+									if(paramsType.type === "Identifier"){
+										if(!paramsType.typeAnnotation){
+											throw "Sj696owBXJ";
+										}
+										let argsType = paramsType.typeAnnotation.typeAnnotation;
+										/**
+										 * here we should take type members and use as args
+										 * */
+										let _argsType: Ty|undefined;
+										if(argsType.type === "TSTypeLiteral"){
+											if(argsType.members.length){
+												const name = node.key.name + "Input";
+												typeFromTypeAnotation(name, paramsType.typeAnnotation.typeAnnotation!, "input", false);
+												_argsType = TypesRegistery.findType(name);
+											}
+										} else if (argsType.type === "TSTypeReference") {
+											if(!("name" in argsType.typeName)){
+												throw "IB7JQCcPDzXxYQcee7"
+											}
+											/**
+											 * type should always exist
+											 * */
+											_argsType = TypesRegistery.findType(argsType.typeName.name + "Input");
+										}
+
+										/**
+										 * append args
+										 * */
+										if(_argsType){
+											const params = _argsType.members.map(member => member.field+ ": " + member.type);
+											if(params.length){
+												type.content += "(" + params.join(", ") + ")";
+											}
+										}
+									} else {
+										log(paramsType, {depth: 10})
+										throw "zUBP";
+									}
+								}
+
+							}
+
+
+							fieldTypeObj = node.returnType!.typeAnnotation;
+
+						} else {
+
+							if(!("typeAnnotation" in node)){
+								throw "0Nt3XDHQedj1eaOXr6LY";
+							}
+
+							if(!node.typeAnnotation){
+								throw "ADMUOgOyrn";
+							}
+
+							fieldTypeObj = node.typeAnnotation.typeAnnotation;
+
+						}
+						
+						const fieldType = typeFromTypeAnotation(
+							typeName + "__" + node.key.name + lodash.capitalize(gType),
+							fieldTypeObj,
+							gType
+						);
+
+						type.content += ": " +  fieldType;
+						
+						type.members.push({
+							field: node.key.name,
+							type: fieldType
+						});
+
+					}
+				);
+
+				type.content += "\n}";
+			}
+			
+			res = typeName + "!";
 		} else if (node.type === "TSTypeReference"){
 			if(!("name" in node.typeName)){
 				throw "k1Xgh88"
@@ -267,11 +270,7 @@ export default function run(
 				if(!node.typeParameters.params.length){
 					res = "Any!";
 				}
-				res = typeFromTypeAnotation(
-					q,
-					node.typeParameters.params[0],
-					gType
-				);
+				res = typeFromTypeAnotation(typeName, node.typeParameters.params[0], gType);
 			} else {
 				res = node.typeName.name + lodash.capitalize(gType) + "!";
 			}
@@ -323,6 +322,10 @@ export default function run(
 		log(emitResult);
 	}
 
-	return TypesRegistery.types.map(type => type.content).concat(out).join("\n");
+	// console.log(TypesRegistery.types)
+
+	return TypesRegistery.types
+		.filter(type => type.published)
+		.map(type => type.content).concat(`scalar Any`).join("\n");
 
 }
