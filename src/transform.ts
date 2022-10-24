@@ -11,6 +11,7 @@ import path from "path";
 type DefaultOptions = {
 	readFile?: (name: string) => string|undefined,
 	fileExists?: (name: string, original: (name: string) => boolean ) => boolean
+	types?: string[]
 };
 
 type Mod = {
@@ -33,11 +34,6 @@ export default function transform(
 	transformOptions : DefaultOptions = {}
 ){
 
-	let leaveRegistry = new Map();
-	let openDefaultClass = false,
-			openQuery = false,
-			declared: {node: TSESTree.TSDeclareFunction, module: string}[] = [],
-			dependencies = [];
 	const graph: Mod[] = [];
 
 	class TypesRegistery {
@@ -76,7 +72,7 @@ export default function transform(
 						i = graph.push({
 							name: mdl.id.value,
 							imports: [],
-							main: mdl.id.value === "file",
+							main: file.endsWith(mdl.id.value + ".ts"),
 							exp: [],
 							declars: [],
 						}) - 1;
@@ -489,7 +485,9 @@ export default function transform(
 	  skipLibCheck: true,
 	  emitDeclarationOnly: true,
 	  strictNullChecks: true,
-	  outFile: "out.ts"
+	  outFile: "out.ts",
+	  types: transformOptions.types,
+	  // traceResolution: true
 	};
 
 	// Create a Program with an in-memory emit

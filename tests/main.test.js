@@ -417,7 +417,7 @@ describe('Main', function () {
 			"file.ts": `
 				export default class {
 					static Query = {
-						q(_, args = {msg: "hi"}){
+						q(_, args = {msg: "hi"}, ctx: Ctx){
 							return undefined as any;
 						}
 					}

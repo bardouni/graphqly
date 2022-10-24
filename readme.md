@@ -7,9 +7,17 @@ It does support object types too
 
 ### How to use
 
-download and run
 ```
-yarn graphqly file.ts
+const path = require("path");
+const {default: transform} = require("@bardouni/graphqly/bundle/src/transform.js");
+
+const content = transform(
+	path.resolve(__dirname, "./file.ts"),
+	{
+		types: [path.resolve(__dirname, "./src/definitions"),]
+	}
+);
+
 ```
 file.ts
 ```
@@ -36,6 +44,7 @@ export default class {
 	}
 }
 ```
+
 W'll output this: schema.gql
 ```
 type Query {
