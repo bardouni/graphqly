@@ -1,6 +1,12 @@
 ### Features
 
 Generate GraphQL schema directly from Typescript code
+
+It does support object types too
+
+
+### How to use
+
 download and run
 ```
 yarn graphqly file.ts
