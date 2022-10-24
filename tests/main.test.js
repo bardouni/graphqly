@@ -1,6 +1,6 @@
 const chai = require('chai');
 const expect = chai.expect;
-const {default: run} = require("../bundle/src/main");
+const {default: transform} = require("../bundle/src/transform");
 const fs = require("fs");
 const path = require("path");
 const {dedent, readFiles} = require("../bundle/src/utils");
@@ -10,7 +10,7 @@ const emptyFile = "scalar Any";
 describe('Main', function () {
 
 	it('Empty File ', function () {
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile(){
@@ -22,7 +22,7 @@ describe('Main', function () {
 	});
 
 	it('Scalars', function () {
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile(){
@@ -69,7 +69,7 @@ describe('Main', function () {
 	});
 
 	it('Any', function () {
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile(){
@@ -96,7 +96,7 @@ describe('Main', function () {
 	});
 
 	it('Async', function () {
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles({
@@ -160,7 +160,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -208,7 +208,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run("file.ts", {readFile: readFiles(files)});
+		let schema = transform("file.ts", {readFile: readFiles(files)});
 		
 		expect(schema).to.equal(
 			dedent`
@@ -227,33 +227,40 @@ describe('Main', function () {
 	});
 
 	it('External module', function () {
-		let schema = run(
+		const files = {
+			"file.ts": `
+				import {resolvers} from "./other";
+				export default class {
+					static Query = {
+						hi(): string => void,
+						...resolvers
+					}
+				}
+			`,
+			[process.cwd() + "/other.ts"]:`
+				export type User = {
+					name: string
+				}
+				export const resolvers = {
+					user() : User => void
+				}
+				export default class {
+					static Query = {
+						ignore(){}
+					}
+				}
+			`
+		};
+		let schema = transform(
 			"file.ts",
 			{
-				readFile: readFiles({
-					"file.ts": `
-						import {resolvers} from "./other";
-						export default class {
-							static Query = {
-								hi(): string => void,
-								...resolvers
-							}
-						}
-					`,
-					[process.cwd() + "/other.ts"]:`
-						export type User = {
-							name: string
-						}
-						export const resolvers = {
-							user() : User => void
-						}
-						export default class {
-							static Query = {
-								ignore(){}
-							}
-						}
-					`
-				})
+				fileExists(e, originalFileExists){
+					if(files[e]){
+						return true;
+					}
+					return originalFileExists(e);
+				},
+				readFile: readFiles(files)
 			}
 		);
 		expect(schema).to.equal(
@@ -294,7 +301,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -347,7 +354,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -378,7 +385,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -414,7 +421,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -448,7 +455,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -479,7 +486,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -507,7 +514,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -546,7 +553,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -590,7 +597,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run(
+		let schema = transform(
 			"file.ts",
 			{
 				readFile: readFiles(files)
@@ -617,7 +624,7 @@ describe('Main', function () {
 			`
 		}
 		try {
-			let schema = run("file.ts", {readFile: readFiles(files)});
+			let schema = transform("file.ts", {readFile: readFiles(files)});
 		} catch (error){
 			expect(error).to.equal("zUBP");
 			return;
@@ -635,7 +642,7 @@ describe('Main', function () {
 				}
 			`
 		}
-		let schema = run("file.ts", {readFile: readFiles(files)});
+		let schema = transform("file.ts", {readFile: readFiles(files)});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -657,7 +664,7 @@ describe('Main', function () {
 			`
 		}
 		try {
-			let schema = run("file.ts", {readFile: readFiles(files)});
+			let schema = transform("file.ts", {readFile: readFiles(files)});
 		} catch (error){
 			expect(error).to.equal("zUBP");
 			return;

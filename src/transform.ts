@@ -9,20 +9,16 @@ import fs from "fs";
 import {log} from "./utils";
 import path from "path";
 
-const defaultOptions = {
-	readFile(fname){
-		return fs.readFileSync(path.resolve(process.cwd(), fname), "utf-8");
-	}
+type DefaultOptions = {
+	readFile: (name: string) => string|undefined,
+	fileExists: (name: string, original: (name: string) => boolean ) => boolean
 };
 
-export default function run(
+export default function transform(
 	file: string,
-	{
-		readFile = defaultOptions.readFile
-	} = defaultOptions
+	transformOptions : DefaultOptions
 ){
 
-	const basePath = process.cwd();
 	let leaveRegistry = new Map();
 	let openDefaultClass = false,
 			openQuery = false;
@@ -313,13 +309,15 @@ export default function run(
 	// Create a Program with an in-memory emit
 	const host = ts.createCompilerHost(options);
 	host.writeFile = handleDTS;
-	let originalFileExist = host.fileExists;
-	host.fileExists = function (filename){
-		return true;
-		// log(basePath + "/" + filename.slice());
-		return originalFileExist(filename);
+	if(transformOptions.readFile){
+		host.readFile = transformOptions.readFile;
 	}
-	host.readFile = readFile;
+	if(transformOptions.fileExists){
+		const original = host.fileExists;
+		host.fileExists = (name) => {
+			return transformOptions.fileExists(name, original);
+		};
+	}
 
 	const program = ts.createProgram(
 		[file],

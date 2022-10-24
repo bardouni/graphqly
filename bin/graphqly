@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('../bundle/src/run.js')
+require('../bundle/src/index.js');
