@@ -10,13 +10,13 @@ import {log} from "./utils";
 import path from "path";
 
 type DefaultOptions = {
-	readFile: (name: string) => string|undefined,
-	fileExists: (name: string, original: (name: string) => boolean ) => boolean
+	readFile?: (name: string) => string|undefined,
+	fileExists?: (name: string, original: (name: string) => boolean ) => boolean
 };
 
 export default function transform(
 	file: string,
-	transformOptions : DefaultOptions
+	transformOptions : DefaultOptions = {}
 ){
 
 	let leaveRegistry = new Map();
@@ -315,7 +315,7 @@ export default function transform(
 	if(transformOptions.fileExists){
 		const original = host.fileExists;
 		host.fileExists = (name) => {
-			return transformOptions.fileExists(name, original);
+			return transformOptions.fileExists!(name, original);
 		};
 	}
 
