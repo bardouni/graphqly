@@ -27,5 +27,8 @@
     "cross-env": "^7.0.3",
     "mocha": "^10.1.0"
   },
-  "files": ["bin/**/*", "bundle/**/*"]
+  "files": [
+    "bin/**/*",
+    "bundle/**/*"
+  ]
 }

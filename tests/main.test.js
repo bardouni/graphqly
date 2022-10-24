@@ -9,6 +9,72 @@ const emptyFile = "scalar Any";
 
 describe('Main', function () {
 
+	it('Referenced function', function () {
+
+		const files = {
+			"file.ts": `
+				import {res3 as res2, Hi} from "./other";
+				function res1(): string{
+					return "hi";
+				}
+				type Foo = {
+					name: string
+				}
+				export default class {
+					static Query = {
+						res1: res1,
+						res2: res2,
+						res3(): Hi{
+							return null as any;
+						},
+						res4(): Foo{
+							return null as any;
+						}
+					}
+				}
+			`,
+			[process.cwd() + "/other.ts"]:`
+				export function res3(): string{
+					return "hi"
+				}
+				export type Hi = {
+					msg: string
+				}
+			`
+		};
+
+		let schema = transform(
+			"file.ts",
+			{
+				fileExists(e, originalFileExists){
+					if(files[e]){
+						return true;
+					}
+					return originalFileExists(e);
+				},
+				readFile: readFiles(files)
+			}
+		);
+
+		expect(schema).to.equal(
+			dedent`
+				type Query {
+					res1: String!
+					res2: String!
+					res3: HiType!
+					res4: FooType!
+				}
+				type HiType {
+					msg: String!
+				}
+				type FooType {
+					name: String!
+				}
+				scalar Any
+			`
+		);
+	});
+
 	it('Empty File ', function () {
 		let schema = transform(
 			"file.ts",
@@ -118,17 +184,14 @@ describe('Main', function () {
 		);
 		expect(schema).to.equal(
 			dedent`
-				type QType {
-					name: String!
-				}
-				input QInput {
-					name: String!
-				}
 				type Query {
 					string: String!
 					void: Any
 					type: QType!
 					literal: Query__literalType!
+				}
+				type QType {
+					name: String!
 				}
 				type Query__literalType {
 					a: String!
@@ -168,23 +231,16 @@ describe('Main', function () {
 		);
 		expect(schema).to.equal(
 			dedent`
+				type Query {
+					custom: ObjType!
+					optionalCustom: ObjType
+				}
 				type ObjType {
 					name: String!
 					obj2: Obj2Type!
 				}
-				input ObjInput {
-					name: String!
-					obj2: Obj2Input!
-				}
 				type Obj2Type {
 					age: Float!
-				}
-				input Obj2Input {
-					age: Float!
-				}
-				type Query {
-					custom: ObjType!
-					optionalCustom: ObjType
 				}
 				scalar Any
 			`
@@ -212,14 +268,11 @@ describe('Main', function () {
 		
 		expect(schema).to.equal(
 			dedent`
-				type ObjType {
-					name(format: String!): Float!
-				}
-				input ObjInput {
-					name: Float!
-				}
 				type Query {
 					custom: ObjType!
+				}
+				type ObjType {
+					name(format: String!): Float!
 				}
 				scalar Any
 			`
@@ -265,15 +318,12 @@ describe('Main', function () {
 		);
 		expect(schema).to.equal(
 			dedent`
-				type UserType {
-					name: String!
-				}
-				input UserInput {
-					name: String!
-				}
 				type Query {
 					user: UserType!
 					hi: String!
+				}
+				type Query__userType {
+					name: String!
 				}
 				scalar Any
 			`
@@ -309,6 +359,9 @@ describe('Main', function () {
 		);
 		expect(schema).to.equal(
 			dedent`
+				type Query {
+					q: ObjType!
+				}
 				type ObjType {
 					name: String!
 					nested: ObjType__nestedType!
@@ -319,20 +372,6 @@ describe('Main', function () {
 				}
 				type ObjType__optionalNestedType {
 					field: String!
-				}
-				input ObjInput {
-					name: String!
-					nested: ObjInput__nestedInput!
-					optionalNested: ObjInput__optionalNestedInput
-				}
-				input ObjInput__nestedInput {
-					field: String!
-				}
-				input ObjInput__optionalNestedInput {
-					field: String!
-				}
-				type Query {
-					q: ObjType!
 				}
 				scalar Any
 			`
@@ -561,24 +600,12 @@ describe('Main', function () {
 		);
 		expect(schema).to.equal(
 			dedent`
-				type AddUserArgsType {
-					id: Float!
-					details: AddUserArgsType__detailsType!
-				}
-				type AddUserArgsType__detailsType {
-					age: Float!
-					name: String!
-				}
-				input AddUserArgsInput {
-					id: Float!
-					details: AddUserArgsInput__detailsInput!
+				type Mutation {
+					addUser(id: Float!, details: AddUserArgsInput__detailsInput!): Boolean!
 				}
 				input AddUserArgsInput__detailsInput {
 					age: Float!
 					name: String!
-				}
-				type Mutation {
-					addUser(id: Float!, details: AddUserArgsInput__detailsInput!): Boolean!
 				}
 				scalar Any
 			`
@@ -623,13 +650,15 @@ describe('Main', function () {
 				}
 			`
 		}
-		try {
-			let schema = transform("file.ts", {readFile: readFiles(files)});
-		} catch (error){
-			expect(error).to.equal("zUBP");
-			return;
-		}
-		throw "7OUcnavm9zOpmCV7ezm8"
+		let schema = transform("file.ts", {readFile: readFiles(files)});
+		expect(schema).to.equal(
+			dedent`
+				type Query {
+					arrayParams: Any
+				}
+				scalar Any
+			`
+		);
 	});
 
 	it('Ignore Args when assigning scalar type', function () {
@@ -663,13 +692,15 @@ describe('Main', function () {
 				}
 			`
 		}
-		try {
-			let schema = transform("file.ts", {readFile: readFiles(files)});
-		} catch (error){
-			expect(error).to.equal("zUBP");
-			return;
-		}
-		throw "Nl6qEbJ8fkenghVCAlc"
+		let schema = transform("file.ts", {readFile: readFiles(files)});
+		expect(schema).to.equal(
+			dedent`
+				type Query {
+					restParam: Any
+				}
+				scalar Any
+			`
+		);
 	});
 
 });

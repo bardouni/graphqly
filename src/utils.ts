@@ -52,12 +52,3 @@ export function readFiles(files: {[key: string]: string}){
 		return files[name] || fs.readFileSync(name, "utf-8");
 	}
 }
-
-export function log(...params){
-	if(process.env.NODE_ENV === "testing"){
-		return;
-	}
-	params.forEach(v => {
-		console.dir(v, {depth: 10});
-	});
-}

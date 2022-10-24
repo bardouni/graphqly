@@ -6,12 +6,26 @@ import {
 import lodash from "lodash";
 import {simpleTraverse} from "./travers";
 import fs from "fs";
-import {log} from "./utils";
 import path from "path";
 
 type DefaultOptions = {
 	readFile?: (name: string) => string|undefined,
 	fileExists?: (name: string, original: (name: string) => boolean ) => boolean
+};
+
+type Mod = {
+	name,
+	main: boolean
+	imports,
+	exp: {node: TSESTree.ExportDefaultDeclaration|TSESTree.ExportNamedDeclaration}[],
+	declars: {node: TSESTree.TSDeclareFunction|TSESTree.TSTypeAliasDeclaration}[]
+};
+
+type GraphqlType = {
+	name: string
+	content: string
+	published: boolean
+	members: {field: string, type: string}[]
 };
 
 export default function transform(
@@ -21,84 +35,122 @@ export default function transform(
 
 	let leaveRegistry = new Map();
 	let openDefaultClass = false,
-			openQuery = false;
-
-	type Ty = {
-		name: string
-		content: string
-		published: boolean
-		members: {field: string, type: string}[]
-	};
+			openQuery = false,
+			declared: {node: TSESTree.TSDeclareFunction, module: string}[] = [],
+			dependencies = [];
+	const graph: Mod[] = [];
 
 	class TypesRegistery {
-		static types = [] as Ty[];
+		static types = [] as GraphqlType[];
 		static findType(name: string){
 			return TypesRegistery.types.find(t => t.name === name)!;
 		}
 	}
 
 	function handleDTS(fileName: string, content: string){
-		// if(fileName.endsWith(".js")){
-		// 	return;
-		// }
-		// console.group(fileName)
-		// log(content)
+		// console.group(fileName);
+		// console.log(content)
 		// console.groupEnd();
-		simpleTraverse(
-			parse(content),
-			{
-				enter(node, parent){
-					if(node.type === "TSTypeAliasDeclaration"){
-						// log("type", node)
-						if(node.typeAnnotation.type === "TSTypeLiteral"){
-							let tname = node.id.name;
-							typeFromTypeAnotation(tname + "Type", node.typeAnnotation, "type");
-							typeFromTypeAnotation(tname + "Input", node.typeAnnotation, "input");
-						} else {
-							throw "unsupported typeAnnotation for TSTypeAliasDeclaration";
-						}
-					} else if (node.type === "ExportDefaultDeclaration") {
-						if(file.slice(0, -2).concat("d.ts") === fileName){
-							openDefaultClass = true;
-							leaveRegistry.set(node, () => openDefaultClass = false);
-						}
-					} else if (node.type === "PropertyDefinition"){
-						if(openDefaultClass){
-							if(!("name" in node.key)){
-								throw "2kHF907ZmUjL2c40mx";
-							}
-							typeFromTypeAnotation(node.key.name, node.typeAnnotation!.typeAnnotation!, "type");
-						}
+		const ast = parse(content);
+
+		ast.body.forEach(mdl => {
+			if(
+				(mdl.type !== "TSModuleDeclaration") ||
+				!mdl.body ||
+				(mdl.body.type !== "TSModuleBlock") ||
+				!mdl.body.body
+			){
+				return;
+			}
+			mdl.body.body.forEach(
+				function (exp){
+					if(
+						!("value" in mdl.id)
+					){
+						throw "3aihxvAk5qI33F7wsk";
 					}
-					// log(node);
-				},
-				leave(node, parent){
-					let leave = leaveRegistry.get(node);
-					if(leave){
-						leave();
+					const value = mdl.id.value;
+					let i = graph.findIndex(m => m.name === value);
+
+					if(i === -1){
+						i = graph.push({
+							name: mdl.id.value,
+							imports: [],
+							main: mdl.id.value === "file",
+							exp: [],
+							declars: [],
+						}) - 1;
+					}
+
+					let m = graph[i];
+
+					// console.log(exp)
+					if(exp.type === "TSDeclareFunction"){
+						m.declars.push({
+							node: exp
+						});
+					} else if (exp.type === "ImportDeclaration") {
+						exp.specifiers.map(imp => {
+							m.imports.push({
+								node: imp,
+								module: exp.source.value
+							});
+						});
+					} else if (exp.type === "ExportDefaultDeclaration") {
+						m.exp.push({node: exp});
+					} else if (exp.type === "TSTypeAliasDeclaration"){
+						m.declars.push({node: exp});
+					} else if(exp.type === "ExportNamedDeclaration"){
+						m.exp.push({
+							node: exp
+						});
 					}
 				}
-			}
-		);
-	}
+			);
+		});
 
-	function typeFromTypeAnotationWithEmptyCheck(...args: Parameters<typeof typeFromTypeAnotation>){
-		let type = typeFromTypeAnotation(...args);
-		if(type === "null"){
-			return "Any";
+		// console.dir(graph, {depth: 10})
+
+		const main = graph.find(mdl => mdl.main);
+
+		if(main){
+			let root = main.exp.find(exp => exp.node.type === "ExportDefaultDeclaration");
+			if(
+				root
+				&& ("declaration" in root.node)
+				&& root.node.declaration
+				&& (root.node.declaration.type === "ClassDeclaration")
+			){
+				root.node.declaration.body.body.forEach(prop => {
+					if(
+						!("key" in prop)
+						|| !("name" in prop.key)
+						|| !("typeAnnotation" in prop)
+					){
+						return;
+					}
+					typeFromTypeAnotation(
+						prop.key.name,
+						prop.typeAnnotation!.typeAnnotation!,
+						"type",
+						true,
+						main
+					);
+				});
+			}
 		}
-		return type;
 	}
 
 	function typeFromTypeAnotation(
 		typeName: string,
 		node: TSESTree.TypeNode,
 		gType: "input"|"type",
-		published = true
+		published: boolean,
+		mod: Mod
 	){
 		let res: string;
 		if(node.type === "TSUnionType"){
-			let types = lodash.uniq( node.types.map(e => typeFromTypeAnotation(typeName, e, gType)).flat() );
+			let types = lodash.uniq( node.types.map(e => typeFromTypeAnotation(typeName, e, gType, true, mod)).flat() );
 			if(types.length > 2){
 				throw "GW6aX84OhSQHFjqUJvUL";
 			}
@@ -121,7 +173,6 @@ export default function transform(
 		} else if (node.type === "TSAnyKeyword"){
 			res = "Any!";
 		} else if (node.type === "TSTypeLiteral"){
-
 			/**
 			 * i belive this should never return true
 			 * because TSTypeLiteral is always generated and uniqe to the parentFieldName
@@ -149,7 +200,7 @@ export default function transform(
 							throw "tcGXA2AdwrwOhnPBpZ";
 						}
 
-						let fieldTypeObj;
+						let fieldTypeObj: TSESTree.TypeNode;
 
 						type.content += "\n\t" + node.key.name;
 
@@ -164,7 +215,6 @@ export default function transform(
 							 * */
 
 							if(gType === "type"){
-
 								/**
 								 * handle params
 								 * */
@@ -190,44 +240,49 @@ export default function transform(
 										if(!paramsType.typeAnnotation){
 											throw "Sj696owBXJ";
 										}
-										let argsType = paramsType.typeAnnotation.typeAnnotation;
+										let tsArgsType = paramsType.typeAnnotation.typeAnnotation;
 										/**
 										 * here we should take type members and use as args
 										 * */
-										let _argsType: Ty|undefined;
-										if(argsType.type === "TSTypeLiteral"){
-											if(argsType.members.length){
-												const name = node.key.name + "Input";
-												typeFromTypeAnotation(name, paramsType.typeAnnotation.typeAnnotation!, "input", false);
-												_argsType = TypesRegistery.findType(name);
+										let gqlArgsType: GraphqlType|undefined;
+
+										if(tsArgsType.type === "TSTypeLiteral"){
+											if(tsArgsType.members.length){
+												const expectedTypeName = node.key.name + "Input";
+												typeFromTypeAnotation(expectedTypeName, paramsType.typeAnnotation.typeAnnotation!, "input", false, mod);
+												gqlArgsType = TypesRegistery.findType(expectedTypeName);
 											}
-										} else if (argsType.type === "TSTypeReference") {
-											if(!("name" in argsType.typeName)){
+										} else if (tsArgsType.type === "TSTypeReference") {
+											if(!("name" in tsArgsType.typeName)){
 												throw "IB7JQCcPDzXxYQcee7"
 											}
-											/**
-											 * type should always exist
-											 * */
-											_argsType = TypesRegistery.findType(argsType.typeName.name + "Input");
+											const resolved = resolveNode(mod, tsArgsType.typeName.name);
+											if(resolved.node.type === "TSTypeAliasDeclaration"){
+												const expectedTypeName = tsArgsType.typeName.name + "Input";
+												typeFromTypeAnotation(
+													expectedTypeName,
+													resolved.node.typeAnnotation,
+													"input",
+													false,
+													mod
+												);
+												gqlArgsType = TypesRegistery.findType(expectedTypeName);
+											}
 										}
 
 										/**
 										 * append args
 										 * */
-										if(_argsType){
-											const params = _argsType.members.map(member => member.field+ ": " + member.type);
+										if(gqlArgsType){
+											const params = gqlArgsType.members.map(member => member.field+ ": " + member.type);
 											if(params.length){
 												type.content += "(" + params.join(", ") + ")";
 											}
 										}
-									} else {
-										log(paramsType, {depth: 10})
-										throw "zUBP";
 									}
 								}
 
 							}
-
 
 							fieldTypeObj = node.returnType!.typeAnnotation;
 
@@ -248,7 +303,9 @@ export default function transform(
 						const fieldType = typeFromTypeAnotationWithEmptyCheck(
 							typeName + "__" + node.key.name + lodash.capitalize(gType),
 							fieldTypeObj,
-							gType
+							gType,
+							true,
+							mod
 						);
 
 						type.content += ": " +  fieldType;
@@ -263,12 +320,13 @@ export default function transform(
 
 				type.content += "\n}";
 			}
-			
+
 			res = typeName + "!";
 		} else if (node.type === "TSTypeReference"){
 			if(!("name" in node.typeName)){
 				throw "k1Xgh88"
 			}
+			const nodeTypeName = node.typeName.name;
 			// todo: check this
 			if(node.typeName.name === "Promise"){
 				if(!node.typeParameters){
@@ -277,8 +335,31 @@ export default function transform(
 				if(!node.typeParameters.params.length){
 					res = "Any!";
 				}
-				res = typeFromTypeAnotationWithEmptyCheck(typeName, node.typeParameters.params[0], gType);
+				res = typeFromTypeAnotationWithEmptyCheck(typeName, node.typeParameters.params[0], gType, true, mod);
 			} else {
+				let declaration = mod.declars
+					.find(e => (e.node.type === "TSTypeAliasDeclaration") && (e.node.id!.name === nodeTypeName)) as {node: TSESTree.TSTypeAliasDeclaration};
+				let tp : TSESTree.TypeNode;
+				if(declaration){
+					tp = declaration.node.typeAnnotation;
+				} else {
+					let exported = resolveNode(mod, node.typeName.name);
+					if(!("declaration" in exported.node)){
+						throw "iSd2aDp361EGD3upfl";
+					}
+					let dec = exported.node.declaration!;
+					if(dec.type !== "TSTypeAliasDeclaration"){
+						throw "mxb7eKyT3L05Y"
+					}
+					tp = dec.typeAnnotation;
+				}
+				let q = typeFromTypeAnotationWithEmptyCheck(
+					node.typeName.name + lodash.capitalize(gType),
+					tp,
+					gType,
+					true,
+					mod
+				);
 				res = node.typeName.name + lodash.capitalize(gType) + "!";
 			}
 		} else if (node.type === "TSLiteralType") {
@@ -291,12 +372,116 @@ export default function transform(
 			if(!("name" in node.qualifier)){
 				throw "PWyRs8UmkFkfstu1lm"
 			}
+			let importedFrom = graph.find(mod => {
+				return mod.name === node.parameter.literal.value;
+			})!;
+			let resolved = resolveNode(importedFrom, node.qualifier.name);
+			let ka = typeFromTypeAnotationWithEmptyCheck(typeName, resolved.node.declaration.typeAnnotation, gType, true, mod);
 			res = node.qualifier.name + lodash.capitalize(gType) + "!" ;
+		} else if (node.type === "TSTypeQuery") {
+
+			/**
+			 * to convert this to a recursive function so it follows the imports up to the main module
+			 * */
+			if(!("name" in node.exprName)){
+				throw "wkiHhL4qxMjkVm";
+			}
+
+			const exprName = node.exprName.name;
+
+			let declaration = mod.declars
+				.find(e => (e.node.type === "TSDeclareFunction") && (e.node.id!.name === exprName)) as {node: TSESTree.TSDeclareFunction};
+
+			let typeNode: TSESTree.TypeNode;
+
+			if(declaration) {
+				typeNode = declaration.node.returnType!.typeAnnotation;
+			} else {
+				const exported = resolveNode(mod, exprName);
+				if(!("declaration" in exported.node)){
+					throw "fninKMHznXHwSmlx"
+				}
+				if(!exported.node.declaration){
+					throw "j6WvRbPgpzydg";
+				}
+				if(exported.node.declaration!.type !== "TSDeclareFunction"){
+					throw "3nQgOQ6"
+				}
+				typeNode = exported.node.declaration!.returnType!.typeAnnotation;
+			}
+
+			if(!typeNode){
+				throw "ZYqheQEv2JiMq";
+			}
+
+			res = typeFromTypeAnotation(
+				typeName,
+				typeNode,
+				"type",
+				true,
+				mod
+			);
 		} else {
-			log(node);
+			// console.log(node);
 			throw "1ujtneIO2LlTiKAqIQTC"
 		}
 		return res;
+	}
+
+	function resolveNode(mod: Mod, exprName: string): Mod["exp"][number]|Mod["declars"][number]{
+
+		const declared = mod.declars.find(e => {
+			if(!e.node.id){
+				return false;
+			}
+			if(!("name" in e.node.id)){
+				return false;
+			}
+			return e.node.id.name === exprName;
+		});
+
+		if(declared){
+			return declared;
+		}
+
+		const imported = mod.exp.find(e => {
+			if(!("declaration" in e.node)){
+				throw "yZfITZvinbq"
+			}
+			if(!e.node.declaration){
+				throw "xKCP4Rzvxv5ur"
+			}
+			if(!("id" in e.node.declaration)){
+				throw "pIvqx5kX5Mzf9uKr"
+			}
+			if(!e.node.declaration!.id){
+				return false;
+				// throw "j22C"
+			}
+			if(!("name" in e.node.declaration.id)){
+				throw "nBJA"
+			}
+			return e.node.declaration.id.name === exprName;
+		});
+
+
+		if(imported){
+			return imported;
+		}
+
+		let req = mod.imports.find(e => e.node.local.name === exprName);
+
+		let reqModule = graph.find(m => m.name === req.module)!;
+
+		return resolveNode(reqModule, req.node.imported.name);
+	}
+
+	function typeFromTypeAnotationWithEmptyCheck(...args: Parameters<typeof typeFromTypeAnotation>){
+		let type = typeFromTypeAnotation(...args);
+		if(type === "null"){
+			return "Any";
+		}
+		return type;
 	}
 
 	const options: ts.CompilerOptions = {
@@ -304,6 +489,7 @@ export default function transform(
 	  skipLibCheck: true,
 	  emitDeclarationOnly: true,
 	  strictNullChecks: true,
+	  outFile: "out.ts"
 	};
 
 	// Create a Program with an in-memory emit
@@ -328,7 +514,7 @@ export default function transform(
 	const emitResult = program.emit();
 
 	if(emitResult.emitSkipped){
-		log(emitResult);
+		console.error(emitResult);
 	}
 
 	// console.log(TypesRegistery.types)
