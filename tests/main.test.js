@@ -4,121 +4,14 @@ const {default: transform} = require("../bundle/src/transform");
 const fs = require("fs");
 const path = require("path");
 const {dedent, readFiles} = require("../bundle/src/utils");
+const ts = require("typescript");
 
 const emptyFile = "scalar Any";
 
 describe('Main', function () {
 
-	it('Referenced function', function () {
-
-		const files = {
-			"file.ts": `
-				import {res3 as res2, Hi} from "./other";
-				function res1(): string{
-					return "hi";
-				}
-				type Foo = {
-					name: string
-				}
-				export default class {
-					static Query = {
-						res1: res1,
-						res2: res2,
-						res3(): Hi{
-							return null as any;
-						},
-						res4(): Foo{
-							return null as any;
-						}
-					}
-				}
-			`,
-			[process.cwd() + "/other.ts"]:`
-				export function res3(): string{
-					return "hi"
-				}
-				export type Hi = {
-					msg: string
-				}
-			`
-		};
-
-		let schema = transform(
-			"file.ts",
-			{
-				fileExists(e, originalFileExists){
-					if(files[e]){
-						return true;
-					}
-					return originalFileExists(e);
-				},
-				readFile: readFiles(files)
-			}
-		);
-
-		expect(schema).to.equal(
-			dedent`
-				type Query {
-					res1: String!
-					res2: String!
-					res3: HiType!
-					res4: FooType!
-				}
-				type HiType {
-					msg: String!
-				}
-				type FooType {
-					name: String!
-				}
-				scalar Any
-			`
-		);
-	});
-
-	it('Empty File ', function () {
-		let schema = transform(
-			"file.ts",
-			{
-				readFile(){
-					return "";
-				}
-			}
-		);
-		expect(schema).to.equal(emptyFile);
-	});
-
 	it('Scalars', function () {
-		let schema = transform(
-			"file.ts",
-			{
-				readFile(){
-					return `
-						export default class {
-							static Query = {
-								boolean(){
-									return true;
-								},
-								string(){
-									return "string";
-								},
-								int(){
-									return 22;
-								},
-								float(){
-									return 22.33;
-								},
-								optional(){
-									return true as boolean|null;
-								},
-								optionalUsingUndefined(){
-									return "string" as string|undefined;
-								},
-							}
-						}
-					`
-				}
-			}
-		);
+		let schema = transform("./tests/dts/scalars/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -134,23 +27,27 @@ describe('Main', function () {
 		);
 	});
 
-	it('Any', function () {
-		let schema = transform(
-			"file.ts",
-			{
-				readFile(){
-					return `
-						export default class {
-							static Query = {
-								any(): any{
-									return "";
-								}
-							}
-						}
-					`
+	it('Array', function () {
+		let schema = transform("./tests/dts/array/index.d.ts", "./tests/dts/package.json");
+		expect(schema).to.equal(
+			dedent`
+				type Query {
+					users: EdgesType!
 				}
-			}
+				type EdgesType {
+					node: UserType!
+					cursor: String!
+				}
+				type UserType {
+					name: String!
+				}
+				scalar Any
+			`
 		);
+	});
+
+	it('Any', function () {
+		let schema = transform("./tests/dts/any/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -162,26 +59,7 @@ describe('Main', function () {
 	});
 
 	it('Async', function () {
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles({
-					"file.ts":`
-						export type Q = {
-							name: string
-						}
-						export default class {
-							static Query = {
-								async string(){return "str"}
-								async void(){return}
-								async type(){return undefined as Q}
-								async literal(){return {a: "hi"}}
-							}
-						}
-					`
-				})
-			}
-		);
+		let schema = transform("./tests/dts/async/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -202,33 +80,7 @@ describe('Main', function () {
 	});
 
 	it('Custom type', function () {
-		let files = {
-			"file.ts": `
-				export type Obj = {
-					name: string
-					obj2: Obj2
-				}
-				export type Obj2 = {
-					age: number
-				}
-				export default class {
-					static Query = {
-						custom() : Obj{
-							return undefined as any;
-						},
-						optionalCustom() : Obj|null{
-							return undefined as any;
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/custom_type/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -248,24 +100,7 @@ describe('Main', function () {
 	});
 
 	it('Type methods', function () {
-		let files = {
-			"file.ts": `
-				type Obj = {
-					name(_, args: {format: string}) : number {
-						return 0;
-					}
-				}
-				export default class {
-					static Query = {
-						custom(_, args): Obj{
-							return undefined as any;
-						}
-					}
-				}
-			`
-		}
-		let schema = transform("file.ts", {readFile: readFiles(files)});
-		
+		let schema = transform("./tests/dts/type_methods/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -279,84 +114,8 @@ describe('Main', function () {
 		);
 	});
 
-	it('External module', function () {
-		const files = {
-			"file.ts": `
-				import {resolvers} from "./other";
-				export default class {
-					static Query = {
-						hi(): string => void,
-						...resolvers
-					}
-				}
-			`,
-			[process.cwd() + "/other.ts"]:`
-				export type User = {
-					name: string
-				}
-				export const resolvers = {
-					user() : User => void
-				}
-				export default class {
-					static Query = {
-						ignore(){}
-					}
-				}
-			`
-		};
-		let schema = transform(
-			"file.ts",
-			{
-				fileExists(e, originalFileExists){
-					if(files[e]){
-						return true;
-					}
-					return originalFileExists(e);
-				},
-				readFile: readFiles(files)
-			}
-		);
-		expect(schema).to.equal(
-			dedent`
-				type Query {
-					user: UserType!
-					hi: String!
-				}
-				type Query__userType {
-					name: String!
-				}
-				scalar Any
-			`
-		);
-	});
-
 	it('Literals Type', function () {
-		let files = {
-			"file.ts": `
-				export type Obj = {
-					name: string
-					nested:{
-						field: string
-					}
-					optionalNested:null|{
-						field: string
-					}
-				}
-				export default class {
-					static Query = {
-						q(){
-							return undefined as any as Obj;
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		const schema = transform("./tests/dts/literal/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -379,26 +138,7 @@ describe('Main', function () {
 	});
 
 	it('Local Literal Type', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Query = {
-						q(){
-							type Hi = {
-								name: string
-							}
-							return undefined as Hi;
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/local_literal/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -413,23 +153,7 @@ describe('Main', function () {
 	});
 
 	it('Assign args', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Query = {
-						q(_, args = {msg: "hi"}, ctx: Ctx){
-							return undefined as any;
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/assign/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -441,31 +165,7 @@ describe('Main', function () {
 	});
 
 	it('empty', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Query = {
-						null(_, tp, ctx){
-							return null;
-						},
-						undefined(_, tp, ctx){
-							return undefined;
-						},
-						void(_, tp, ctx){},
-						emptyReturn(){return},
-						explicitNullOrUndefined(){
-							return null as null|undefined;
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/empty/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -481,25 +181,7 @@ describe('Main', function () {
 	});
 
 	it('Mutation', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Mutation = {
-						addUser(){
-							return {
-								msg: "Hello world"
-							}
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/mutation/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -514,23 +196,7 @@ describe('Main', function () {
 	});
 
 	it('No Types args', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Mutation = {
-						addUser(_, args){
-							return true
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/no_type_args/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -542,23 +208,7 @@ describe('Main', function () {
 	});
 
 	it('Literal args', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Mutation = {
-						addUser(_, args: {id: number, details: {age: number, name: string}}){
-							return true
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/literal_args/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -574,30 +224,7 @@ describe('Main', function () {
 	});
 
 	it('Ignore this arg', function () {
-		let files = {
-			"file.ts": `
-				type AddUserArgs = {
-					id: number
-					details:{
-						age: number
-						name: string
-					}
-				}
-				export default class {
-					static Mutation = {
-						addUser(this: never, _, args: AddUserArgs){
-							return true
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/ignore_this/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -613,23 +240,7 @@ describe('Main', function () {
 	});
 
 	it('Ignore first param when using this arg', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Mutation = {
-						addUser(this: never, _){
-							return true
-						}
-					}
-				}
-			`
-		}
-		let schema = transform(
-			"file.ts",
-			{
-				readFile: readFiles(files)
-			}
-		);
+		let schema = transform("./tests/dts/ignore_this2/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -641,16 +252,7 @@ describe('Main', function () {
 	});
 
 	it('throw on arrayParams', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Query = {
-						arrayParams(_, [aio]){},
-					}
-				}
-			`
-		}
-		let schema = transform("file.ts", {readFile: readFiles(files)});
+		let schema = transform("./tests/dts/array_params/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -662,16 +264,7 @@ describe('Main', function () {
 	});
 
 	it('Ignore Args when assigning scalar type', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Query = {
-						assignSimpleParam(_, a = ""){},
-					}
-				}
-			`
-		}
-		let schema = transform("file.ts", {readFile: readFiles(files)});
+		let schema = transform("./tests/dts/ignore_args3/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -683,16 +276,7 @@ describe('Main', function () {
 	});
 
 	it('throw on restParam', function () {
-		let files = {
-			"file.ts": `
-				export default class {
-					static Query = {
-						restParam(_, ...res){},
-					}
-				}
-			`
-		}
-		let schema = transform("file.ts", {readFile: readFiles(files)});
+		let schema = transform("./tests/dts/rest_params/index.d.ts", "./tests/dts/package.json");
 		expect(schema).to.equal(
 			dedent`
 				type Query {

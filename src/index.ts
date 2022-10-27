@@ -5,17 +5,19 @@ import path from "path";
 
 const args = process.argv.slice(2);
 
-const file = args[0];
-
-if(!file){
+if(!args[0]){
 	throw "entry file is required";
 }
 
-const schema = transform(file);
+if(!args[1]){
+	throw "packages.json path is required";
+}
 
-fs.writeFileSync(
-	args[1] ?
-		path.resolve(process.cwd(), args[1]) :
-		path.resolve(process.cwd(), path.dirname(file), "schema.gql"),
-	schema
-);
+if(!args[3]){
+	throw "destination path is required";
+}
+
+
+const schema = transform(args[0], args[1]);
+
+fs.writeFileSync(path.resolve(process.cwd(), args[3]), schema);
