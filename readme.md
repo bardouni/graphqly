@@ -1,48 +1,12 @@
+### WIP
+
 ### Features
-
 Generate GraphQL schema directly from Typescript code
-
-It does support object types too
-
-
+It does support objects too
 ### How to use
-
+First u need to generate the .d.ts files of your project then run
 ```
-const path = require("path");
-const {default: transform} = require("@bardouni/graphqly/bundle/src/transform.js");
-
-const content = transform(
-	path.resolve(__dirname, "./file.ts"),
-	{
-		types: [path.resolve(__dirname, "./src/definitions"),]
-	}
-);
-
-```
-file.ts
-```
-export default class {
-	static Query = {
-		boolean(){
-			return true;
-		},
-		string(){
-			return "string";
-		},
-		int(){
-			return 22;
-		},
-		float(){
-			return 22.33;
-		},
-		optional(){
-			return true as boolean|null;
-		},
-		optionalUsingUndefined(){
-			return "string" as string|undefined;
-		},
-	}
-}
+yarn graphqly run --definition bundle/backend/src/api/schema/def.d.ts --package ./package.json --destination ./a.gql --tsconfig tsconfig.json
 ```
 
 W'll output this: schema.gql

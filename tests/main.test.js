@@ -1,6 +1,6 @@
 const chai = require('chai');
 const expect = chai.expect;
-const {default: transform} = require("../bundle/src/transform");
+const {default: transform} = require("../bundle/src/index");
 const fs = require("fs");
 const path = require("path");
 const {dedent, readFiles} = require("../bundle/src/utils");

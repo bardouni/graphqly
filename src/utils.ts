@@ -45,10 +45,3 @@ export function dedent(
   }
   return dedentString(str);
 }
-
-export function readFiles(files: {[key: string]: string}){
-	return function readFile(name){
-		// console.log(files[name]);
-		return files[name] || fs.readFileSync(name, "utf-8");
-	}
-}
