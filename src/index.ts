@@ -35,6 +35,7 @@ export default function transform(opts: Opts){
 		ast.body.forEach(exp => {
 			if(
 				(exp.type === "ClassDeclaration") &&
+				exp.id &&
 				(exp.id.name === "Root")
 			){
 				exp.body.body.forEach(prop => {
@@ -61,7 +62,7 @@ export default function transform(opts: Opts){
 
 	function typeFromTypeAnotation(
 		typeName: string,
-		node: TSESTree.TypeNode,
+		node: TSESTree.TypeNode|TSESTree.ClassDeclaration,
 		gType: "input"|"type",
 		published: boolean
 	){
@@ -90,23 +91,15 @@ export default function transform(opts: Opts){
 		} else if (node.type === "TSAnyKeyword"){
 			res = "Any!";
 		} else if (node.type === "TSTypeLiteral"){
-			/**
-			 * i belive this should never return true
-			 * because TSTypeLiteral is always generated and uniqe to the parentFieldName
-			 * */
-			let foundType = TypesRegistery.types.find(t => t.name === typeName);
-
-			if(!foundType){
 				
-				let ndx = TypesRegistery.types.push({
+			if(!TypesRegistery.types.some(t => t.name === typeName)){
+				const ndx = TypesRegistery.types.push({
 					name: typeName,
 					content: gType + " "+ typeName + " {",
 					published,
 					members: []
 				}) - 1;
-
-				let type = TypesRegistery.types[ndx]!;
-
+				const type = TypesRegistery.types[ndx]!;
 				node.members.forEach(
 					function (node){
 
@@ -137,7 +130,7 @@ export default function transform(opts: Opts){
 								 * */
 								let params = node.params;
 
-								if(params.length >= 2){
+								if(params.length >= 1){
 									let firstType = node.params[0];
 									/**
 									 * basic types are not supported
@@ -151,8 +144,8 @@ export default function transform(opts: Opts){
 									}
 								}
 
-								if(params.length >= 2){
-									let paramsType = params[1];
+								if(params.length >= 1){
+									let paramsType = params[0];
 									if(paramsType.type === "Identifier"){
 										if(!paramsType.typeAnnotation){
 											throw "Sj696owBXJ";
@@ -161,7 +154,7 @@ export default function transform(opts: Opts){
 										/**
 										 * here we should take type members and use as args
 										 * */
-										let ts: TSESTree.TypeNode|undefined;
+										let ts: TSESTree.TypeNode|TSESTree.ClassDeclaration|undefined;
 										let expectedTypeName: string|undefined;
 
 										if(tsArgsType.type === "TSTypeLiteral"){
@@ -194,7 +187,6 @@ export default function transform(opts: Opts){
 							}
 
 							fieldTypeObj = node.returnType!.typeAnnotation;
-
 						} else {
 
 							if(!("typeAnnotation" in node)){
@@ -206,7 +198,6 @@ export default function transform(opts: Opts){
 							}
 
 							fieldTypeObj = node.typeAnnotation.typeAnnotation;
-
 						}
 						
 						const fieldType = typeFromTypeAnotationWithEmptyCheck(
@@ -225,7 +216,6 @@ export default function transform(opts: Opts){
 
 					}
 				);
-
 				type.content += "\n}";
 			}
 
@@ -291,38 +281,111 @@ export default function transform(opts: Opts){
 				gType,
 				published
 			)
+		} else if (node.type === "ClassDeclaration") {
+
+			let foundType = TypesRegistery.types.find(t => t.name === typeName);
+
+			if(!foundType){
+				
+				let ndx = TypesRegistery.types.push({
+					name: typeName,
+					content: gType + " "+ typeName + " {",
+					published,
+					members: []
+				}) - 1;
+
+				let type = TypesRegistery.types[ndx]!;
+
+				node.body.body.forEach(
+					function (node){
+
+						if(!("key" in node)){
+							throw "tcGXA2AdwrwOhnPBpZ";
+						}
+						if(!("name" in node.key)){
+							throw "tcGXA2AdwrwOhnPBpZ";
+						}
+
+						let fieldTypeObj: TSESTree.TypeNode|undefined = undefined;
+
+						type.content += "\n\t" + node.key.name;
+
+						if(node.type === "PropertyDefinition"){
+							fieldTypeObj = node.typeAnnotation!.typeAnnotation;
+						} else if (node.type === "MethodDefinition") {
+							if(node.value.returnType){
+								fieldTypeObj = node.value.returnType.typeAnnotation;
+							}
+						} else {
+							throw "cuzO";
+						}
+
+						if(fieldTypeObj){
+							const fieldType = typeFromTypeAnotationWithEmptyCheck(
+								typeName + "__" + node.key.name + lodash.capitalize(gType),
+								fieldTypeObj,
+								gType,
+								true
+							);
+
+							type.content += ": " +  fieldType;
+
+							type.members.push({
+								field: node.key.name,
+								type: fieldType
+							});
+						}
+
+					}
+				);
+
+				type.content += "\n}";
+			}
+
+			res = typeName + "!";
 		} else {
-			console.dir(node, {depth: 10})
+			console.dir(node, {depth: 10});
 			throw "1ujtneIO2LlTiKAqIQTC"
 		}
 		return res;
 	}
 
-	function resolveNode(exprName: string): [TSESTree.TypeNode]{
+	function resolveNode(exprName: string): [TSESTree.TypeNode|TSESTree.ClassDeclaration]{
 
-		const node = ast.body.find(item => {
-
+		for(let i in ast.body){
+			const item = ast.body[i];
 			if(item.type === "ExportNamedDeclaration"){
-				if(!item.declaration){
-					return;
+				if(
+					item.declaration &&
+					("id" in item.declaration) &&
+					item.declaration.id &&
+					("name" in item.declaration.id) &&
+					(item.declaration.id.name === exprName)
+				){
+					if(!("typeAnnotation" in item.declaration)){
+						if(!item.declaration){
+							throw "h3Er";
+						}
+						return [item.declaration];
+						// throw "e4kd1fglGhdTmUpy1v";
+					}
+					return [item.declaration.typeAnnotation];
 				}
-				return item.declaration.id.name === exprName;
 			} else if(item.type === "TSTypeAliasDeclaration"){
-				return item.id.name === exprName;
+				if(item.id.name === exprName){
+					return [item.typeAnnotation];
+				}
 			} else if(item.type === "TSDeclareFunction"){
-				return item.id.name === exprName;
-			}
-
-			return false;
-		})!;
-
-		if(node){
-			if(node.type === "TSDeclareFunction"){
-				return [node.returnType!.typeAnnotation!];
-			} else if (node.type === "ExportNamedDeclaration"){
-				return [node.declaration.typeAnnotation];
-			} else if (node.type === "TSTypeAliasDeclaration"){
-				return [node.typeAnnotation];
+				if(
+					item.id &&
+					(item.id.name === exprName)
+				){
+					return [item.returnType!.typeAnnotation!];
+				}
+			} else if (item.type === "ClassDeclaration") {
+				if(item.id.name === exprName){
+					return [item];
+				}
 			}
 		}
 

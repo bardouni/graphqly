@@ -1,6 +1,6 @@
 export default class Root {
     static Query: {
-        q(_: any, args?: {
+        q(args?: {
             msg: string;
         }): any;
     };

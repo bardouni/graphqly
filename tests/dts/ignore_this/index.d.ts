@@ -7,7 +7,7 @@ declare type AddUserArgs = {
 };
 export default class Root {
     static Mutation: {
-        addUser(this: never, _: any, args: AddUserArgs): boolean;
+        addUser(this: never, args: AddUserArgs): boolean;
     };
 }
 export {};

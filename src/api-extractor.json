@@ -77,7 +77,7 @@
    *
    * DEFAULT VALUE: "false"
    */
-  // "testMode": false,
+  "testMode": false,
 
   /**
    * Specifies how API Extractor sorts members of an enum when generating the .api.json file. By default, the output
@@ -362,7 +362,7 @@
          *
          * DEFAULT VALUE: "warning"
          */
-        "logLevel": "warning"
+        "logLevel": "none"
 
         /**
          * When addToApiReportFile is true:  If API Extractor is configured to write an API report file (.api.md),
@@ -391,7 +391,7 @@
      */
     "extractorMessageReporting": {
       "default": {
-        "logLevel": "warning"
+        "logLevel": "none"
         // "addToApiReportFile": false
       }
 
@@ -412,7 +412,7 @@
      */
     "tsdocMessageReporting": {
       "default": {
-        "logLevel": "warning"
+        "logLevel": "none"
         // "addToApiReportFile": false
       }
 

@@ -1,5 +1,5 @@
 declare type Obj = {
-    name(_: any, args: {
+    name(args: {
         format: string;
     }): number;
 };

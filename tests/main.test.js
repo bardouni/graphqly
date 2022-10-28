@@ -11,7 +11,11 @@ const emptyFile = "scalar Any";
 describe('Main', function () {
 
 	it('Scalars', function () {
-		let schema = transform("./tests/dts/scalars/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/scalars/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -27,8 +31,35 @@ describe('Main', function () {
 		);
 	});
 
+	it('Class', function () {
+		let schema = transform({
+			definition: "./tests/dts/class/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
+		expect(schema).to.equal(
+			dedent`
+				type Query {
+					user: UserType!
+				}
+				type UserType {
+					name: String!
+					likes: [LikeType!]!
+				}
+				type LikeType {
+					from: String!
+				}
+				scalar Any
+			`
+		);
+	});
+
 	it('Array', function () {
-		let schema = transform("./tests/dts/array/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/array/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -47,7 +78,11 @@ describe('Main', function () {
 	});
 
 	it('Any', function () {
-		let schema = transform("./tests/dts/any/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/any/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -59,7 +94,11 @@ describe('Main', function () {
 	});
 
 	it('Async', function () {
-		let schema = transform("./tests/dts/async/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/async/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -80,7 +119,11 @@ describe('Main', function () {
 	});
 
 	it('Custom type', function () {
-		let schema = transform("./tests/dts/custom_type/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/custom_type/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -100,7 +143,11 @@ describe('Main', function () {
 	});
 
 	it('Type methods', function () {
-		let schema = transform("./tests/dts/type_methods/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/type_methods/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -115,7 +162,11 @@ describe('Main', function () {
 	});
 
 	it('Literals Type', function () {
-		const schema = transform("./tests/dts/literal/index.d.ts", "./tests/dts/package.json");
+		const schema = transform({
+			definition: "./tests/dts/literal/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -138,7 +189,11 @@ describe('Main', function () {
 	});
 
 	it('Local Literal Type', function () {
-		let schema = transform("./tests/dts/local_literal/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/local_literal/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -153,7 +208,11 @@ describe('Main', function () {
 	});
 
 	it('Assign args', function () {
-		let schema = transform("./tests/dts/assign/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/assign/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -165,7 +224,11 @@ describe('Main', function () {
 	});
 
 	it('empty', function () {
-		let schema = transform("./tests/dts/empty/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/empty/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -181,7 +244,11 @@ describe('Main', function () {
 	});
 
 	it('Mutation', function () {
-		let schema = transform("./tests/dts/mutation/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/mutation/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -196,7 +263,11 @@ describe('Main', function () {
 	});
 
 	it('No Types args', function () {
-		let schema = transform("./tests/dts/no_type_args/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/no_type_args/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -208,7 +279,11 @@ describe('Main', function () {
 	});
 
 	it('Literal args', function () {
-		let schema = transform("./tests/dts/literal_args/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/literal_args/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -224,7 +299,11 @@ describe('Main', function () {
 	});
 
 	it('Ignore this arg', function () {
-		let schema = transform("./tests/dts/ignore_this/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/ignore_this/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -240,7 +319,11 @@ describe('Main', function () {
 	});
 
 	it('Ignore first param when using this arg', function () {
-		let schema = transform("./tests/dts/ignore_this2/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/ignore_this2/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
@@ -252,7 +335,11 @@ describe('Main', function () {
 	});
 
 	it('throw on arrayParams', function () {
-		let schema = transform("./tests/dts/array_params/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/array_params/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -264,7 +351,11 @@ describe('Main', function () {
 	});
 
 	it('Ignore Args when assigning scalar type', function () {
-		let schema = transform("./tests/dts/ignore_args3/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/ignore_args3/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {
@@ -276,7 +367,11 @@ describe('Main', function () {
 	});
 
 	it('throw on restParam', function () {
-		let schema = transform("./tests/dts/rest_params/index.d.ts", "./tests/dts/package.json");
+		let schema = transform({
+			definition: "./tests/dts/rest_params/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
 		expect(schema).to.equal(
 			dedent`
 				type Query {

@@ -1,6 +1,6 @@
 {
   "name": "@bardouni/graphqly",
-  "version": "1.0.18",
+  "version": "1.0.20",
   "repository": "git@github.com:bardouni/graphqly.git",
   "description": "Generate GraphQL schema directly from typescript code",
   "main": "./bundle/src/index.js",
