@@ -22,12 +22,14 @@ yargs(hideBin(process.argv))
 	      })
 	      .option('package', {
 	        description: 'package.json',
+	        default: 'package.json'
 	      })
 	      .option('destination', {
 	        description: 'graphql.gql destination',
 	      })
 	      .option('tsconfig', {
 	        description: 'tsconfig.json',
+	        default: 'tsconfig.json'
 	      })
 	      .demandOption(['definition', 'package', 'destination', 'tsconfig']);
   	},
