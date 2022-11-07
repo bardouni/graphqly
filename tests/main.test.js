@@ -31,6 +31,22 @@ describe('Main', function () {
 		);
 	});
 
+	it('Opaque', function () {
+		let schema = transform({
+			definition: "./tests/dts/opaque/index.d.ts",
+			package: "./tests/dts/package.json",
+			tsconfig: "./tests/tsconfig.json"
+		});
+		expect(schema).to.equal(
+			dedent`
+				type Mutation {
+					addUser(id: Int!): Boolean!
+				}
+				scalar Any
+			`
+		);
+	});
+
 	it('Class', function () {
 		let schema = transform({
 			definition: "./tests/dts/class/index.d.ts",
@@ -63,9 +79,9 @@ describe('Main', function () {
 		expect(schema).to.equal(
 			dedent`
 				type Query {
-					users: EdgesType!
+					users: [EdgesTypeItem!]!
 				}
-				type EdgesType {
+				type EdgesTypeItem {
 					node: UserType!
 					cursor: String!
 				}
@@ -152,6 +168,7 @@ describe('Main', function () {
 			dedent`
 				type Query {
 					custom: ObjType!
+					func(id: Float!): String!
 				}
 				type ObjType {
 					name(format: String!): Float!
@@ -287,9 +304,9 @@ describe('Main', function () {
 		expect(schema).to.equal(
 			dedent`
 				type Mutation {
-					addUser(id: Float!, details: addUserInput__detailsInput!): Boolean!
+					addUser(id: Float!, details: Mutation__addUserTypeInput__detailsInput!): Boolean!
 				}
-				input addUserInput__detailsInput {
+				input Mutation__addUserTypeInput__detailsInput {
 					age: Float!
 					name: String!
 				}
