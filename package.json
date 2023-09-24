@@ -1,26 +1,28 @@
 {
   "name": "@bardouni/graphqly",
-  "version": "1.0.22",
+  "version": "1.0.25",
   "repository": "git@github.com:bardouni/graphqly.git",
   "description": "Generate GraphQL schema directly from typescript code",
   "main": "./bundle/src/index.js",
   "typings": "./bundle/src/index.d.ts",
   "license": "ISC",
   "scripts": {
+  	"build": "tsc",
     "watch": "nodemon ./bundle/src/main2.js",
     "mocha": "mocha",
-    "test": "cross-env NODE_ENV=testing yarn mocha tests/**.test.js"
+    "test": "cross-env NODE_ENV=testing yarn mocha tests/**.test.js",
+    "ae": "api-extractor"
   },
   "bin":{
   	"graphqly": "bin/graphqly"
   },
   "dependencies": {
-    "@microsoft/api-extractor": "^7.33.4",
+    "@microsoft/api-extractor": "^7.37.0",
     "@types/node": "^18.11.2",
     "@types/yargs": "^17.0.13",
-    "@typescript-eslint/typescript-estree": "^5.40.1",
+    "@typescript-eslint/typescript-estree": "^6.7.2",
     "lodash": "^4.17.21",
-    "typescript": "^4.8.4",
+    "typescript": "^4.9.0",
     "yargs": "^17.6.0"
   },
   "devDependencies": {

@@ -35,12 +35,19 @@ yargs(hideBin(process.argv))
   	},
   	function (argv) {
 
-	    const schema = transform({
-	    	definition: argv.definition,
-	    	package: argv.package,
-	    	tsconfig: argv.tsconfig,
-	    });
+  		try {
 
-	    fs.writeFileSync(path.resolve(process.cwd(), argv.destination), schema);
+		    const schema = transform({
+		    	definition: argv.definition,
+		    	package: argv.package,
+		    	tsconfig: argv.tsconfig,
+		    });
+
+		    fs.writeFileSync(path.resolve(process.cwd(), argv.destination), schema);
+
+  		} catch (e){
+  			console.error(e);
+  		}
+
 	  }
 	).parse();

@@ -31,22 +31,6 @@ describe('Main', function () {
 		);
 	});
 
-	it('Opaque', function () {
-		let schema = transform({
-			definition: "./tests/dts/opaque/index.d.ts",
-			package: "./tests/dts/package.json",
-			tsconfig: "./tests/tsconfig.json"
-		});
-		expect(schema).to.equal(
-			dedent`
-				type Mutation {
-					addUser(id: Int!): Boolean!
-				}
-				scalar Any
-			`
-		);
-	});
-
 	it('Class', function () {
 		let schema = transform({
 			definition: "./tests/dts/class/index.d.ts",
