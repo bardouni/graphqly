@@ -1,9 +1,9 @@
 export declare class Account extends Node_2 {
 }
 class Model {
-	
+
 }
-declare class Node_2 extends Model {
+export declare class Node_2 extends Model {
     id: string;
 }
 export { Node_2 as Node }
@@ -13,6 +13,10 @@ export declare class Query {
 }
 
 export declare class User extends Node_2 {
+}
+
+export class Test extends Model{
+	id: string
 }
 
 export { }

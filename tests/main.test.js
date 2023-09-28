@@ -23,6 +23,9 @@ it('Node', function () {
 			interface Node_2 {
 				id: String!
 			}
+			type Test {
+				id: String!
+			}
 			type User implements Node_2 {
 
 			}

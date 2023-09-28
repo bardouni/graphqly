@@ -463,7 +463,6 @@ export function handleDTS(
 		.filter(type => {
 			return type.published;
 		})
-		// .filter(type => type.name !== "Root")
 		.map(type => {
 			let nodeType: string = type.type;
 			const isInterface = TypesRegistery.interface.includes(type.name);
@@ -471,8 +470,18 @@ export function handleDTS(
 				nodeType = "interface";
 			}
 			let output = (
-				`${nodeType} ${type.name}` + (type.extends && !isInterface ? ` implements ${type.extends}` : "") + " {\n"
+				`${nodeType} ${type.name}`
 			);
+			if (
+				type.extends &&
+				!isInterface &&
+				TypesRegistery.types.some(t => {
+					return t.name === type.extends;
+				})
+			){
+				output += ` implements ${type.extends}`;
+			}
+			output += " {\n";
 			output += (
 				type.fields.map(
 					t => {
