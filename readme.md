@@ -1,55 +1,50 @@
-# WIP
+# Graphqly
 
-### Features
-Generate GraphQL schema directly from Typescript code
-It does support Types and Classes.
+## Features
+Generate a GraphQL schema directly from your TypeScript code. Supports both Types and Classes.
 
-**This is still a work in progress, and any pull requests are welcome, you can find more examples on the tests folder.**
-### How to use
-Your typescript code should export a class named Root with Query/Mutation properties: **/def.ts**
-```
-export default class Root {
-	static Query = {
-		hi({name: string}){
-			return "hi " + name;
-		}
-	}
+If you've worked with APIs, GraphQL, and Relay, you know that the code-first approach can be time-consuming. Graphqly simplifies this by generating a GraphQL schema based on your TypeScript resolvers.
+
+**This project is a work in progress. Pull requests are welcome. Check the `tests` folder for more examples.**
+
+## How to Use
+
+### Step 1: Create Your TypeScript Definitions
+Create a TypeScript file (e.g., `def.ts`) and export a class like `Query` `Mutation`.
+
+```typescript
+export class Query {
+    hi({name: string}){
+        return "hi " + name;
+    }
 }
 ```
-Then you run tsc on your code which will output something like this: **/def.d.ts**
+### Step 2: Compile TypeScript
+Run tsc to compile your code. This will generate a definition file (e.g., def.d.ts).
 ```
-export default class Root {
-    static Query: {
-        hi({ name: string }: {
-            name: any;
-        }): string;
-    };
+export declare class Query {
+    hi({ name }: {
+        name: any;
+    }): string;
 }
 ```
-3th. you run graphqly with the required parameters:
+### Step 3: Generate GraphQL Schema
+
+Run Graphqly with the required parameters.
 ```
 yarn graphqly run --definition ./def.d.ts --package ./package.json --destination ./out.gql --tsconfig tsconfig.json
 ```
+### Output
 
-Eventually, Graphqly w'll output this: **schema.gql**
+Graphqly will generate a GraphQL schema file (e.g., schema.gql).
 ```
 type Query {
 	hi(name: String!): String!
 }
 scalar Any
+
 ```
-
-Spec:
-- when function returns empty values eg:
-	null
-	undefined
-	void
-	the query response is Any
-- when function returns any keyword
-	the query response is Any!
-- when function returns union of a type and values eg:
-	null|Type
-	undefined|Type
-	void|Type
-	the query response is optional Type
-
+### Specification
+- Field type is `Any` for null, undefined, void, or any.
+- Field type is optional `Type` for `null|Type`, `undefined|Type`, `void|Type`.
+- All exported classes are included in the generated GraphQL schema.
