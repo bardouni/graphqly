@@ -465,6 +465,7 @@ export function handleDTS(
 		})
 		.map(type => {
 			let nodeType: string = type.type;
+			let _interface : GraphqlType|undefined = undefined;;
 			const isInterface = TypesRegistery.interface.includes(type.name);
 			if(isInterface){
 				nodeType = "interface";
@@ -475,15 +476,18 @@ export function handleDTS(
 			if (
 				type.extends &&
 				!isInterface &&
-				TypesRegistery.types.some(t => {
-					return t.name === type.extends;
-				})
+				(_interface = TypesRegistery.types.find(t => t.name === type.extends))
 			){
 				output += ` implements ${type.extends}`;
 			}
 			output += " {\n";
 			output += (
-				type.fields.map(
+				type.fields
+				.concat(
+					_interface ? 
+						_interface.fields : []
+				)
+				.map(
 					t => {
 						let res = "\t" + t.field;
 						if(t.params.length){

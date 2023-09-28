@@ -15,7 +15,7 @@ it('Node', function () {
 	expect(schema).to.equal(
 		dedent`
 			type Account implements Node_2 {
-
+				id: String!
 			}
 			type Query {
 				user: Node_2!
@@ -27,7 +27,7 @@ it('Node', function () {
 				id: String!
 			}
 			type User implements Node_2 {
-
+				id: String!
 			}
 			scalar Any
 		`
