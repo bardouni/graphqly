@@ -20,7 +20,7 @@ it('Node', function () {
 			type Query {
 				user: Node_2!
 			}
-			type Node_2 {
+			interface Node_2 {
 				id: String!
 			}
 			type User implements Node_2 {

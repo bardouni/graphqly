@@ -43,6 +43,7 @@ export function handleDTS(
 	
 	class TypesRegistery {
 		static types = [] as GraphqlType[];
+		static interface = [] as string[];
 		static findType(name: string){
 			return TypesRegistery.types.find(t => t.name === name)!;
 		}
@@ -177,6 +178,9 @@ export function handleDTS(
 			if(element.heritageClauses?.[0]){
 				const expression = element.heritageClauses[0].types[0].expression as ts.Identifier;
 				graphqlType.extends = expression.escapedText.toString();
+				if(!TypesRegistery.interface.includes(graphqlType.extends)){
+					TypesRegistery.interface.push(graphqlType.extends);
+				}
 			}
 			return [
 				{
@@ -461,8 +465,15 @@ export function handleDTS(
 		})
 		// .filter(type => type.name !== "Root")
 		.map(type => {
-			return (
-				type.type + ` ` + type.name + (type.extends ? ` implements ${type.extends}` : "") + " {\n" +
+			let nodeType: string = type.type;
+			const isInterface = TypesRegistery.interface.includes(type.name);
+			if(isInterface){
+				nodeType = "interface";
+			}
+			let output = (
+				`${nodeType} ${type.name}` + (type.extends && !isInterface ? ` implements ${type.extends}` : "") + " {\n"
+			);
+			output += (
 				type.fields.map(
 					t => {
 						let res = "\t" + t.field;
@@ -482,6 +493,7 @@ export function handleDTS(
 				).join("\n") +
 				"\n}"
 			);
+			return output;
 		}).concat(`scalar Any`).join("\n");
 }
 
