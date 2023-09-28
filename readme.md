@@ -45,7 +45,7 @@ Spec:
 	undefined
 	void
 	the query response is Any
-- when function returns Any keyword
+- when function returns any keyword
 	the query response is Any!
 - when function returns union of a type and values eg:
 	null|Type

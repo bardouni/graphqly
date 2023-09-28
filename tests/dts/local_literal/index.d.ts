@@ -1,7 +1,5 @@
-export default class Root {
-    static Query: {
-        q(): {
-            name: string;
-        };
+export default class Query {
+    q(): {
+        name: string;
     };
-}
+};

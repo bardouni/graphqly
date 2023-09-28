@@ -5,9 +5,7 @@ export declare type Obj = {
 export declare type Obj2 = {
     age: number;
 };
-export default class Root{
-    static Query: {
-        custom(): Obj;
-        optionalCustom(): Obj | null;
-    };
-}
+export default class Query {
+    custom(): Obj;
+    optionalCustom(): Obj | null;
+};

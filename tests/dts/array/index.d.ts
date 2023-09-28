@@ -1,13 +1,11 @@
-declare type User = {
-    name: string;
+export declare type User = {
+  name: string;
 };
-declare type Edges = {
-    node: User;
-    cursor: string;
+export declare type Edges = {
+  node: User;
+  cursor: string;
 }[];
-export default class Root{
-    static Query: {
-        users(): Edges;
-    };
-}
+export default class Query {
+    users(): Edges;
+};
 export {};

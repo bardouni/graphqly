@@ -5,9 +5,8 @@ declare class User {
     name: string;
     likes(): Like[]
 }
-export default class Root {
-    static Query: {
-        user(): User;
-    };
-}
+export default class Query {
+    user(): User;
+    user2(): User; // avoid duplication
+};
 export {};

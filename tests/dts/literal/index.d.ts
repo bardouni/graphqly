@@ -7,9 +7,7 @@ export declare type Obj = {
         field: string;
     };
 };
-export default class Root {
-    static Query: {
-        q(): Obj;
-    };
-}
+export default class Query {
+    q(): Obj;
+};
 
