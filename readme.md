@@ -48,3 +48,6 @@ scalar Any
 - Field type is `Any` for null, undefined, void, or any.
 - Field type is optional `Type` for `null|Type`, `undefined|Type`, `void|Type`.
 - All exported classes are included in the generated GraphQL schema.
+- Types are automatically converted to interfaces when extended.
+- If an extended class is not exported, the extension will be ignored.
+- If an extended class is not exported, the extension will be ignored.
