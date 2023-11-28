@@ -20,6 +20,7 @@ const acceptedKinds = <const>[
 	ts.SyntaxKind.AnyKeyword,
 	ts.SyntaxKind.ArrayType,
 	ts.SyntaxKind.TypeQuery,
+	ts.SyntaxKind.ParenthesizedType,
 ];
 
 // to fix
@@ -33,6 +34,7 @@ type AcType = ts.ClassDeclaration|
 	ts.ArrayTypeNode|
 	ts.TypeAliasDeclaration|
 	ts.TypeQueryNode|
+	ts.ParenthesizedTypeNode|
 	ts.KeywordTypeNode<ts.KeywordTypeSyntaxKind>;
 
 export function handleDTS(
@@ -452,6 +454,8 @@ export function handleDTS(
 					label: "Any",
 				}
 			];
+		} else if (element.kind === ts.SyntaxKind.ParenthesizedType){
+			return getFieldType(name + "Item", element.type as CustomUnknown, "type", true);
 		}
 		return [undefined];
 	}

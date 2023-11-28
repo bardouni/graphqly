@@ -19,6 +19,7 @@ it('Node', function () {
 			}
 			type Query {
 				user: Node_2!
+				nodes(ids: [String!]!): [Node_2]!
 			}
 			interface Node_2 {
 				id: String!
