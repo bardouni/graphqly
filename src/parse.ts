@@ -1,47 +1,7 @@
-import fs from "fs";
+import * as mo from "ts-morph";
 import * as ts from 'typescript';
 
-function parseCode(code: string) {
-  const sourceFile = ts.createSourceFile('temp.ts', code, ts.ScriptTarget.ES2015, false);
-  return sourceFile;
-}
-
-const acceptedKinds = <const>[
-	ts.SyntaxKind.ClassDeclaration,
-	ts.SyntaxKind.TypeAliasDeclaration,
-	ts.SyntaxKind.TypeLiteral,
-	ts.SyntaxKind.TypeReference,
-	ts.SyntaxKind.BooleanKeyword,
-	ts.SyntaxKind.StringKeyword,
-	ts.SyntaxKind.NumberKeyword,
-	ts.SyntaxKind.UnionType,
-	ts.SyntaxKind.LiteralType,
-	ts.SyntaxKind.UndefinedKeyword,
-	ts.SyntaxKind.AnyKeyword,
-	ts.SyntaxKind.ArrayType,
-	ts.SyntaxKind.TypeQuery,
-	ts.SyntaxKind.ParenthesizedType,
-];
-
-// to fix
-type CustomUnknown = any;
-
-type AcType = ts.ClassDeclaration|
-	ts.TypeLiteralNode|
-	ts.TypeReferenceNode|
-	ts.UnionTypeNode|
-	ts.LiteralTypeNode|
-	ts.ArrayTypeNode|
-	ts.TypeAliasDeclaration|
-	ts.TypeQueryNode|
-	ts.ParenthesizedTypeNode|
-	ts.KeywordTypeNode<ts.KeywordTypeSyntaxKind>;
-
-export function handleDTS(
-	content: string,
-	tsconfigFilePath: string,
-	outFilePath: string
-){
+export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 	
 	class TypesRegistery {
 		static types = [] as GraphqlType[];
@@ -58,71 +18,36 @@ export function handleDTS(
 		return "Input";
 	}
 
-	function handleParams(name: string, params: ts.ParameterDeclaration[]|null): Field["params"]{
+	function handleParams(name: string, params: mo.Symbol[]|null){
 		if(!params?.length){
-			return [];
+			return undefined;
 		}
-		if(!params[0].name){
-			return [];
+		if(!params[0].getName()){
+			return undefined;
 		}
-		if(
+		/*if(
 			params[0].name.kind === ts.SyntaxKind.Identifier &&
 			params[0].name.escapedText === "this"
 		){
 			params = params.slice(1);
-		}
-		if(!params[0].type){
-			return [];
-		}
-		let [type] = getFieldType(name, params[0].type as CustomUnknown, "input", false);
+		}*/
+		const dec = params[0].getDeclarations()[0].getType();
+		let [type] = getFieldType(name, dec, "input", false);
 		if(type){
-			const graphqlType = TypesRegistery.findType(type.value.slice(0, -1));
-			if(graphqlType){
-				return graphqlType.fields.map(member => {
-					return {
-						field: member.field,
-						type: member.type.label,
-					}
-				});
-			}
+			return TypesRegistery.findType(type.value);
 		}
-		return [];
 	}
-
-	const ast = parseCode(content);
-
-	ast.statements.forEach(statment => {
-		if(
-			ts.isClassDeclaration(statment) &&
-			statment.name
-		){
-			if(
-				["Mutation", "Query", "Subscription"].includes(statment.name.escapedText.toString()) ||
-				statment.modifiers?.some(m => {
-					return m.kind === ts.SyntaxKind.ExportKeyword;
-				})
-			){
-				getFieldType(
-					statment.name.escapedText!,
-					statment,
-					"type",
-					true
-				);
-			}
-		}
-	});
 
 	function getFieldType(
 		name: string,
-		element: AcType|undefined,
+		element: mo.Type,
 		nodeType: GraphqlOperationType,
-		published: boolean,
-		overrideType?: GraphqlType
-	) : [Field["type"], Field["params"]?]|[undefined] {
-		if(!element){
-			return [undefined];
-		}
-		if (element.kind === ts.SyntaxKind.ClassDeclaration){
+		published: boolean
+	) : [Field["type"]]|[undefined] {
+		if (element.isClassOrInterface()){
+			const sym = element.getSymbol();
+			const dec = sym!.getDeclarations()[0] as mo.ClassDeclaration;
+			const name = dec.getName()!;
 			const graphqlType : GraphqlType = {
 				extends: undefined,
 				type: nodeType,
@@ -131,244 +56,89 @@ export function handleDTS(
 				content: "",
 				published
 			};
+			const types = element.getBaseTypes();
+			if(types.length){
+				let name = types[0].getSymbol()!.getName();
+				const dec = types[0].getSymbol()!.getValueDeclaration()!;
+				if(mo.Node.isClassDeclaration(dec)){
+					name = dec.getName()!;
+				}
+				graphqlType.extends = name;
+				TypesRegistery.interface.push(graphqlType.extends);
+			}
+			let returnedType = {
+				value: graphqlType.name,
+				label: graphqlType.name,
+				isRequired: true
+			};
+			if(TypesRegistery.types.some(type => type.name === graphqlType.name)){
+				return [returnedType];
+			}
 			TypesRegistery.types.push(graphqlType);
-			element.members.forEach(classElement => {
-				if(classElement.kind === ts.SyntaxKind.PropertyDeclaration){
-					const prop = classElement as ts.PropertyDeclaration;
-					if(prop.name.kind !== ts.SyntaxKind.Identifier){
-						return;
-					}
-					let field = prop.name.escapedText.toString();
-					let [type, params = []] = getFieldType(name + "__" + field + suffixType(nodeType), prop.type as AcType, nodeType, true);
-					if(type){
-						graphqlType.fields.push({
-							field: field,
-							type: type,
-							params: params
-						});
-					}
-				} else if (classElement.kind === ts.SyntaxKind.MethodDeclaration) {
-					const method = classElement as ts.MethodDeclaration;
-					if(method.name.kind !== ts.SyntaxKind.Identifier){
-						return;
-					}
-					const field = method.name.escapedText.toString();
-					const [type, prs] = getFieldType(name + "__" + field + suffixType(nodeType), method.type as AcType, nodeType, true);
-					const params = handleParams(name + "__" + field + "Input", Array.from(method.parameters));
-					if(type){
-						graphqlType.fields.push({
-							field: field,
-							type: type,
-							params: params
-						});
-					}
-				} else if(classElement.name) {
-					if(classElement.name.kind !== ts.SyntaxKind.Identifier){
-						return;
-					}
-					const field = classElement.name.escapedText.toString();
-					graphqlType.fields.push({
-						field: field,
-						type: {
-							label: "Any",
-							value: "Any",
-						},
-						params: []
-					});
+			dec.getMembers().forEach(member => {
+				if(mo.Node.isConstructorDeclaration(member)){
+					return;
 				}
+				const field = member.getName();
+		  	if(mo.Node.isPropertyDeclaration(member)){
+		  		const initializer = member.getInitializer()!;
+		  		if(initializer){
+			  		let callSig = initializer.getType().getCallSignatures()[0];
+			  		if(callSig){
+			  			const [_type] = getFieldType(
+			  				name + "__" + field + suffixType(nodeType),
+			  				callSig.getReturnType(),
+			  				nodeType,
+			  				true
+			  			);
+			  			const params = handleParams(name + "__" + field + "Input", callSig.getParameters());
+			  			if(_type){
+			  				graphqlType.fields.push({
+			  					field: field,
+			  					type: _type,
+			  					paramsType: params
+			  				});
+			  			}
+			  		}
+		  		} else {
+		  			const [_type] = getFieldType(
+		  				name + "__" + field + suffixType(nodeType),
+		  				member.getType(),
+		  				nodeType,
+		  				true
+		  			);
+		  			if(_type){
+		  				graphqlType.fields.push({
+		  					field: field,
+		  					type: _type,
+		  				});
+		  			}
+		  		}
+		  	} else if (mo.Node.isMethodDeclaration(member)){
+		  		let returnType = member.getReturnType();
+		  		const sig = member.getSignature()!;
+		  		const params = handleParams(name + "__" + field + "Input", sig.getParameters());
+		  		const [_type] = getFieldType(name + "__" + field + suffixType(nodeType), returnType, nodeType, true)
+		  		if(_type){
+			  		graphqlType.fields.push({
+			  			field: field,
+			  			type: _type,
+			  			paramsType: params
+			  		});
+		  		}
+		  	}
 			});
-			if(element.heritageClauses?.[0]){
-				const expression = element.heritageClauses[0].types[0].expression as ts.Identifier;
-				graphqlType.extends = expression.escapedText.toString();
-				if(!TypesRegistery.interface.includes(graphqlType.extends)){
-					TypesRegistery.interface.push(graphqlType.extends);
-				}
-			}
-			return [
-				{
-					value: graphqlType.name + "!",
-					label: graphqlType.name + "!",
-				}
-			];
-		} else if (element.kind === ts.SyntaxKind.TypeAliasDeclaration){
-			if(acceptedKinds.some(t => t === element.type.kind)){
-				const ob : GraphqlType = {
-					extends: undefined,
-					type: nodeType,
-					fields: [],
-					name,
-					content: "",
-					published
-				};
-				TypesRegistery.types.push(ob);
-				let [type] = getFieldType(name, element.type as AcType, nodeType, true, ob);
-				if(type && type.isArray){
-					ob.published = false;
-				}
-				return [type];
-			}
-			return [
-				{
-					value: "Any",
-					label: "Any",
-				}
-			];
-		} else if (element.kind === ts.SyntaxKind.TypeLiteral) {
-			let graphqlType : GraphqlType;
-			if(overrideType){
-				graphqlType = overrideType;
-			} else {
-				graphqlType = {
-					extends: undefined,
-					type: nodeType,
-					fields: [],
-					name: name,
-					content: "",
-					published
-				};
-				TypesRegistery.types.push(graphqlType);
-			}
-			element.members.forEach(function (typeElement){
-				if(typeElement.kind === ts.SyntaxKind.MethodSignature){
-					let methodSignature = typeElement as ts.MethodSignature;
-					if(methodSignature.name.kind !== ts.SyntaxKind.Identifier){
-						return;
+			return [returnedType];
+		} else if (element.isUnion()){
+			let types = element.getUnionTypes()
+				.map(type => getFieldType(name, type, nodeType, published))
+				.map(item => item[0])
+				.filter(
+					(e, index, list) => {
+						let _index = list.findIndex(em => em?.value === e?.value);
+						return index === _index;
 					}
-					const field = methodSignature.name.escapedText.toString();
-					const [type, params = []] = getFieldType(graphqlType.name + "__" + field + suffixType(nodeType) , methodSignature.type as AcType, nodeType, true);
-					if(type){
-						graphqlType.fields.push({
-							field: field,
-							type: type,
-							params: params
-						});
-					}
-				} else if (typeElement.kind === ts.SyntaxKind.PropertySignature){
-					let propertySignature = typeElement as ts.PropertySignature;
-					if(propertySignature.name.kind !== ts.SyntaxKind.Identifier){
-						return;
-					}
-					const field = propertySignature.name.escapedText.toString();
-					const [type, params = []] = getFieldType(graphqlType.name + "__" + field + suffixType(nodeType) , propertySignature.type as AcType, nodeType, true);
-					if(type){
-						graphqlType.fields.push({
-							field: field,
-							type: type,
-							params: params
-						});
-					}
-				} else if (typeElement.name){
-					if(typeElement.name.kind !== ts.SyntaxKind.Identifier){
-						return;
-					}
-					const field = typeElement.name.escapedText.toString();
-					graphqlType.fields.push({
-						field: field,
-						type: {
-							label: "Any",
-							value: "Any",
-						},
-						params: []
-					});
-				}
-			});
-			return [
-				{
-					value: name + "!",
-					label: name + "!",
-				}
-			];
-		} else if (element.kind === ts.SyntaxKind.TypeReference){
-			if(element.typeName.kind === ts.SyntaxKind.Identifier){
-				let referenceName = element.typeName.escapedText;
-				if(referenceName === "Promise"){
-					if(!element.typeArguments){
-						return [undefined]
-					}
-					let [type] = getFieldType(name, element.typeArguments[0] as CustomUnknown, nodeType, true);
-					return [type];
-				}
-				let type = element;
-				let old = TypesRegistery.findType(element.typeName.escapedText.toString())
-				if(old){
-					return [
-						{
-							value: old.name + "!",
-							label: old.name + "!",
-						}
-					];
-				}
-				let statment: AcType|undefined = undefined;
-				for(let i in ast.statements){
-					let j = ast.statements[i];
-					if(acceptedKinds.some(t => t === j.kind)){
-						let _j = j as AcType;
-						if(
-							"name" in _j &&
-							_j.name &&
-							_j.name.kind === ts.SyntaxKind.Identifier &&
-							_j.name.escapedText === (type.typeName as ts.Identifier).escapedText
-						){
-							statment = _j;
-							break;
-						}
-					}
-				}
-				if(!statment){
-					return [undefined];
-				}
-				// const [type] = addTypeRefWhenMissing(element, nodeType, published);
-				let [val] = getFieldType(
-					statment.name!.escapedText + suffixType(nodeType),
-					statment,
-					nodeType,
-					published
-				);
-				if(!val){
-					return [undefined];
-				}
-				return [val];
-			} else {
-				return [undefined];
-			}
-		} else if (element.kind === ts.SyntaxKind.ArrayType){
-			let [type] = getFieldType(name + "Item", element.elementType as AcType, nodeType, true);
-			if(type){
-				return [
-					{
-						label: `[${type.value}]!`,
-						value: `[${type.label}]!`,
-						isArray: true
-					}
-				]
-			}
-		} else if (element.kind === ts.SyntaxKind.TypeQuery){
-			if(element.exprName.kind === ts.SyntaxKind.Identifier){
-				let statment: ts.FunctionDeclaration|undefined = undefined;
-				for(let i in ast.statements){
-					let j = ast.statements[i];
-					if(j.kind === ts.SyntaxKind.FunctionDeclaration){
-						let _j = j as ts.FunctionDeclaration;
-						if(
-							_j.name &&
-							_j.name.kind === ts.SyntaxKind.Identifier &&
-							_j.name.escapedText === element.exprName.escapedText
-						){
-							statment = _j;
-							break;
-						}
-					}
-				}
-				if(statment){
-					let [type, params] = getFieldType(name, statment.type as CustomUnknown, nodeType, true);
-					if(type){
-						return [type, handleParams(name + "Input", Array.from(statment.parameters))];
-					}
-				}
-			}
-			return [undefined];
-		} else if (element.kind === ts.SyntaxKind.UnionType){
-			let types = element.types.map(type => getFieldType(name, type as CustomUnknown, nodeType, true)).map(item => item[0]);
+				)
 			// filter non known types
 			if(types.some(type => type === undefined)){
 				return [undefined];
@@ -378,6 +148,7 @@ export function handleDTS(
 					{
 						value: "Any",
 						label: "Any",
+						isRequired: false
 					}
 				];
 			}
@@ -390,6 +161,7 @@ export function handleDTS(
 					{
 						value: "Any",
 						label: "Any",
+						isRequired: false
 					}
 				];
 			}
@@ -397,136 +169,222 @@ export function handleDTS(
 			if(nullTypes.length){
 				return [
 					{
-						value: nonNullTypes[0]!.value.slice(0, -1),
-						label: nonNullTypes[0]!.label.slice(0, -1),
+						value: nonNullTypes[0]!.value,
+						label: nonNullTypes[0]!.label,
+						isRequired: false
 					}
 				];
 			}
 			return [nonNullTypes[0]];
-		} else if (element.kind === ts.SyntaxKind.BooleanKeyword){
+		} else if (element.isBoolean() || element.isBooleanLiteral()){
 			return [
 				{
-					label: "Boolean!",
-					value: "Boolean!",
+					label: "Boolean",
+					value: "Boolean",
+					isRequired: true,
 				}
 			];
-		} else if (element.kind === ts.SyntaxKind.StringKeyword){
+		} else if (element.isString()){
 			return [
 				{
-					label: "String!",
-					value: "String!",
+					label: "String",
+					value: "String",
+					isRequired: true,
 				}
 			];
-		} else if (element.kind === ts.SyntaxKind.NumberKeyword){
+		} else if (element.isNumber()){
 			return [
 				{
-					value: "Float!",
-					label: "Float!",
+					value: "Float",
+					label: "Float",
+					isRequired: true,
 				}
 			];
-		} else if (element.kind === ts.SyntaxKind.VoidKeyword){
-			return [
-				{
-					value: "null",
-					label: "Any",
-				}
-			];
-		} else if (element.kind === ts.SyntaxKind.LiteralType){
-			if(element.literal.kind === ts.SyntaxKind.NullKeyword){
-				return [
-					{
-						value: "null",
-						label: "Any",
-					}
-				];
-			}
-		} else if (element.kind === ts.SyntaxKind.UndefinedKeyword){
+		} else if (element.isVoid()){
 			return [
 				{
 					value: "null",
 					label: "Any",
+					isRequired: false,
 				}
 			];
-		} else if (element.kind === ts.SyntaxKind.AnyKeyword){
+		} else if (element.isUndefined() || element.isNull()){
+			return [
+				{
+					value: "null",
+					label: "Any",
+					isRequired: false,
+				}
+			];
+		} else if (element.isAny()){
 			return [
 				{
 					value: "Any",
 					label: "Any",
+					isRequired: false,
 				}
 			];
-		} else if (element.kind === ts.SyntaxKind.ParenthesizedType){
-			return getFieldType(name + "Item", element.type as CustomUnknown, "type", true);
+		} else if (element.isArray()){
+			let [type] = getFieldType(name + "Item", element.getArrayElementType()!, nodeType, true);
+			if(type){
+				return [
+					{
+						label: `[${type.value}${type.isRequired ? "!" : ""}]`,
+						value: `[${type.label}${type.isRequired ? "!" : ""}]`,
+						isArray: true,
+						isRequired: true
+					}
+				]
+			}
+		} else if (element.isObject()){
+			if(element.getObjectFlags() === mo.ObjectFlags.Reference){
+				const sym = element.getSymbol()!;
+				const _name = sym.getName();
+				let _element: mo.Type = element;
+				if(_name === "Promise"){
+					_element = element.getTypeArguments()[0];
+				}
+				return getFieldType(
+					name,
+					_element,
+					nodeType,
+					published
+				);
+			} else if (
+				(element.getObjectFlags() === mo.ObjectFlags.Anonymous) ||
+				(element.getAliasSymbol()) ||
+				mo.Node.isTypeLiteral(element.getSymbol()!.getDeclarations()[0]) ||
+				mo.Node.isObjectLiteralExpression(element.getSymbol()!.getDeclarations()[0])
+			) {
+				let aliasSymbol = element.getAliasSymbol();
+				let _name = name;
+				if(aliasSymbol){
+					_name = aliasSymbol.getName();
+				}
+				const graphqlType : GraphqlType = {
+					extends: undefined,
+					type: nodeType,
+					fields: [],
+					name: _name,
+					content: "",
+					published
+				};
+				let returnedType = {
+					value: _name,
+					label: _name,
+					isRequired: true
+				};
+				if(TypesRegistery.types.some(type => type.name === graphqlType.name)){
+					return [returnedType];
+				}
+				TypesRegistery.types.push(graphqlType);
+				element.getProperties().forEach(property => {
+					const field = property.getName();
+				  const declaration = property.getDeclarations()[0];
+				  if(declaration){
+				  	let propertyType = declaration.getType();
+				  	const callSig = propertyType.getCallSignatures()[0];
+				  	let paramsType: GraphqlType|undefined;
+				  	if(callSig){
+				  		propertyType = callSig.getReturnType();
+				  		paramsType = handleParams(name + "__" + field + "Input", callSig.getParameters());
+				  	}
+				  	const [_type] = getFieldType(_name + "__" + field + suffixType(nodeType), propertyType, nodeType, true);
+		  	  	if(_type){
+		  				graphqlType.fields.push({
+		  					field: field,
+		  					type: _type,
+		  					paramsType
+		  				});
+		  	  	}
+				  }
+				});
+				return [
+					returnedType
+				];
+			} else if (element.getObjectFlags() === mo.ObjectFlags.ObjectLiteral){
+			}
 		}
 		return [undefined];
 	}
 
+	return [
+		getFieldType,
+		function (){
+			return toString();
+		}
+	] as const;
 
-	fs.unlinkSync(outFilePath);
-
-	return TypesRegistery.types
-		.filter(type => {
-			return type.published;
-		})
-		.map(type => {
-			let nodeType: string = type.type;
-			let _interface : GraphqlType|undefined = undefined;;
-			const isInterface = TypesRegistery.interface.includes(type.name);
-			if(isInterface){
-				nodeType = "interface";
-			}
-			let output = (
-				`${nodeType} ${type.name}`
-			);
-			if (
-				type.extends &&
-				!isInterface &&
-				(_interface = TypesRegistery.types.find(t => t.name === type.extends))
-			){
-				output += ` implements ${type.extends}`;
-			}
-			output += " {\n";
-			output += (
-				type.fields
-				.concat(
-					_interface ? 
-						_interface.fields : []
-				)
-				.map(
-					t => {
-						let res = "\t" + t.field;
-						if(t.params.length){
-							res += (
-								"(" +
-								t.params
-									.map(param => {
-										return param.field+ ": " + param.type;
-									})
-									.join(", ") +
-								")"
-							);
+	function toString(){
+		// console.log(JSON.stringify(TypesRegistery.types, null, 2));
+		return TypesRegistery.types
+			.filter(type => {
+				return type.published;
+			})
+			.map(type => {
+				let nodeType: string = type.type;
+				let _interface : GraphqlType|undefined = undefined;;
+				const isInterface = TypesRegistery.interface.includes(type.name);
+				if(isInterface){
+					nodeType = "interface";
+				}
+				let output = (
+					`${nodeType} ${type.name}`
+				);
+				if (
+					type.extends &&
+					!isInterface &&
+					(_interface = TypesRegistery.types.find(t => t.name === type.extends))
+				){
+					output += ` implements ${type.extends}`;
+				}
+				output += " {\n";
+				output += (
+					type.fields
+					.concat(
+						_interface ? 
+							_interface.fields : []
+					)
+					.map(
+						t => {
+							let res = "\t" + t.field;
+							if(t.paramsType){
+								res += (
+									"(" +
+									t.paramsType.fields
+										.map(param => {
+											return param.field+ ": " + param.type.label + (param.type.isRequired ? "!" : "");
+										})
+										.join(", ") +
+									")"
+								);
+							}
+							return res + ": " + t.type.label + (t.type.isRequired ? "!" : "");
 						}
-						return res + ": " + t.type.label;
-					}
-				).join("\n") +
-				"\n}"
-			);
-			return output;
-		}).concat(`scalar Any`).join("\n");
+					).join("\n") +
+					"\n}"
+				);
+				return output;
+			}).concat(`scalar Any`).join("\n");
+	}
+
 }
 
-type Field = {
+
+export type Field = {
 	field: string
 	type: {
 		value: string
 		label: string
 		isArray?: boolean
+		isRequired: boolean
 	}
-	params: {field: string, type: string}[]
+	paramsType?: GraphqlType
 }
 
-type GraphqlOperationType = "input"|"type";
+export type GraphqlOperationType = "input"|"type";
 
-type GraphqlType = {
+export type GraphqlType = {
 	extends: string|undefined
 	type: GraphqlOperationType
 	name: string

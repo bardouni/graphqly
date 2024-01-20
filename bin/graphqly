@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('../bundle/src/bin.js');
+require('../dist/src/bin.js');

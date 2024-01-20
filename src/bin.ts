@@ -1,8 +1,8 @@
-import transform from "./";
 import fs from "fs";
 import path from "path";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
+import transform from "./";
 
 type Def = {
 	definition: string
@@ -20,10 +20,6 @@ yargs(hideBin(process.argv))
 	      .option('definition', {
 	        description: '.d.ts file',
 	      })
-	      .option('package', {
-	        description: 'package.json',
-	        default: 'package.json'
-	      })
 	      .option('destination', {
 	        description: 'graphql.gql destination',
 	      })
@@ -31,7 +27,7 @@ yargs(hideBin(process.argv))
 	        description: 'tsconfig.json',
 	        default: 'tsconfig.json'
 	      })
-	      .demandOption(['definition', 'package', 'destination', 'tsconfig']);
+	      .demandOption(['definition', 'destination', 'tsconfig']);
   	},
   	function (argv) {
 
@@ -39,7 +35,6 @@ yargs(hideBin(process.argv))
 
 		    const schema = transform({
 		    	definition: argv.definition,
-		    	package: argv.package,
 		    	tsconfig: argv.tsconfig,
 		    });
 

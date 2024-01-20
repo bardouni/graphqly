@@ -2,20 +2,22 @@
   "compilerOptions": {
     "target": "ES6",
     "module": "commonjs",
-    "outDir": "./bundle",
+    "outDir": "./dist",
     "rootDir": "./",
+    "noEmit": false,
     "strictNullChecks": true,
     "noImplicitReturns": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "nodenext",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "declaration": true,
     "jsx": "preserve"
   },
   "include": [
-  	"src/**/*"
+  	"src/**/*",
+  	"test/**/*"
   ],
   "exclude":[]
 }

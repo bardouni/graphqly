@@ -11,10 +11,11 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "declaration": true,
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "moEmit": true
   },
   "include": [
-  	"dts/**/*"
+  	"./**/*"
   ],
   "exclude":[]
 }

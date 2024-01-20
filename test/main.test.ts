@@ -1,33 +1,33 @@
-const chai = require('chai');
-const expect = chai.expect;
-const {default: transform} = require("../bundle/src/index");
-const fs = require("fs");
-const path = require("path");
-const {dedent, readFiles} = require("../bundle/src/utils");
-const ts = require("typescript");
+import transform from "../src";
+import { dedent } from "../src/utils";
 
 it('Node', function () {
 	let schema = transform({
-		definition: "./tests/dts/main/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/main/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
-			type Account implements Node_2 {
+			type Account implements Node {
 				id: String!
 			}
 			type Query {
-				user: Node_2!
-				nodes(ids: [String!]!): [Node_2]!
+				user: Node!
+				nodes(ids: [String!]!): [Node]!
 			}
-			interface Node_2 {
+			interface Node {
+				id: String!
+			}
+			type User implements Node {
+				id: String!
+			}
+			type Project implements NonDef {
 				id: String!
 			}
 			type Test {
 				id: String!
 			}
-			type User implements Node_2 {
+			interface NonDef {
 				id: String!
 			}
 			scalar Any
@@ -35,20 +35,51 @@ it('Node', function () {
 	);
 });
 
+it('External', function () {
+	let schema = transform({
+		definition: "./test/dts/external/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
+	});
+	expect(schema).toStrictEqual(
+		dedent`
+			type Query {
+				external: Query__external!
+			}
+			type Query__external {
+				summary: Query__external__summary!
+				periods: [Query__external__periodsItem!]!
+				pageInfo: Query__external__pageInfo!
+			}
+			type Query__external__summary {
+				visits: Float!
+				installs: Float!
+				revenue: Float!
+			}
+			type Query__external__periodsItem {
+				node: Period!
+			}
+			type Period {
+				date: String!
+			}
+			type Query__external__pageInfo {
+				startCursor: String
+				hasPreviousPage: Boolean!
+				endCursor: String
+				hasNextPage: Boolean!
+			}
+			scalar Any
+		`
+	);
+});
+
+
 it('Scalars', function () {
 	let schema = transform({
-		definition: "./tests/dts/scalars/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/scalars/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
-			type Mutation {
-				addUser: Mutation__addUser!
-			}
-			type Mutation__addUser {
-				msg: String!
-			}
 			type Query {
 				boolean: Boolean!
 				string: String!
@@ -58,6 +89,12 @@ it('Scalars', function () {
 				optionalUsingUndefined: String
 				any: Any
 			}
+			type Mutation {
+				addUser: Mutation__addUser!
+			}
+			type Mutation__addUser {
+				msg: String!
+			}
 			scalar Any
 		`
 	);
@@ -65,11 +102,10 @@ it('Scalars', function () {
 
 it('Class', function () {
 	let schema = transform({
-		definition: "./tests/dts/class/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/class/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				user: User!
@@ -87,36 +123,12 @@ it('Class', function () {
 	);
 });
 
-it('Reference Array', function () {
-	let schema = transform({
-		definition: "./tests/dts/array/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
-	});
-	expect(schema).to.equal(
-		dedent`
-			type Query {
-				users: [EdgesItem!]!
-			}
-			type EdgesItem {
-				node: User!
-				cursor: String!
-			}
-			type User {
-				name: String!
-			}
-			scalar Any
-		`
-	);
-});
-
 it('Async', function () {
 	let schema = transform({
-		definition: "./tests/dts/async/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/async/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				string: String!
@@ -137,11 +149,10 @@ it('Async', function () {
 
 it('Custom type', function () {
 	let schema = transform({
-		definition: "./tests/dts/custom_type/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/custom_type/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				custom: Obj!
@@ -150,6 +161,7 @@ it('Custom type', function () {
 			type Obj {
 				name: String!
 				obj2: Obj2!
+				field: String!
 			}
 			type Obj2 {
 				age: Float!
@@ -161,11 +173,10 @@ it('Custom type', function () {
 
 it('Type methods', function () {
 	let schema = transform({
-		definition: "./tests/dts/type_methods/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/type_methods/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				custom: Obj!
@@ -186,11 +197,10 @@ it('Type methods', function () {
 
 it('Literals Type', function () {
 	const schema = transform({
-		definition: "./tests/dts/literal/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/literal/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				q: Obj!
@@ -213,11 +223,10 @@ it('Literals Type', function () {
 
 it('Local Literal Type', function () {
 	let schema = transform({
-		definition: "./tests/dts/local_literal/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/local_literal/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				q: Query__q!
@@ -232,11 +241,10 @@ it('Local Literal Type', function () {
 
 it('Assign args', function () {
 	let schema = transform({
-		definition: "./tests/dts/assign/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/assign/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				q(msg: String!): Any
@@ -248,11 +256,10 @@ it('Assign args', function () {
 
 it('empty', function () {
 	let schema = transform({
-		definition: "./tests/dts/empty/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/empty/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
 				null: Any
@@ -268,16 +275,15 @@ it('empty', function () {
 
 it('Arguments', function () {
 	let schema = transform({
-		definition: "./tests/dts/arguments/index.d.ts",
-		package: "./tests/dts/package.json",
-		tsconfig: "./tests/tsconfig.json"
+		definition: "./test/dts/arguments/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
 	});
-	expect(schema).to.equal(
+	expect(schema).toStrictEqual(
 		dedent`
 			type Mutation {
 				addUser: Boolean!
 				addUser2(id: Float!, details: Mutation__addUser2Input__detailsInput!): Boolean!
-				addUser3(id: Float!, details: AddUserArgsInput__detailsInput!): Boolean!
+				addUser3(id: Float!, details: AddUserArgs__detailsInput!): Boolean!
 				addUser4(name: String!, age: Float!): Boolean!
 				arrayParams: Any
 				assignSimpleParam: Any
@@ -287,7 +293,7 @@ it('Arguments', function () {
 				age: Float!
 				name: String!
 			}
-			input AddUserArgsInput__detailsInput {
+			input AddUserArgs__detailsInput {
 				age: Float!
 				name: String!
 			}

@@ -1,4 +1,5 @@
 node_modules/
 bundle/
-ignore/
 dist/
+test/dts/**/**.d.ts
+test/dts/**/**.js
