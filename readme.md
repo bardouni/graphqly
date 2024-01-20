@@ -19,20 +19,12 @@ export class Query {
     }
 }
 ```
-### Step 2: Compile TypeScript
-Run tsc to compile your code. This will generate a definition file (e.g., def.d.ts).
-```
-export declare class Query {
-    hi({ name }: {
-        name: any;
-    }): string;
-}
-```
-### Step 3: Generate GraphQL Schema
+
+### Step 2: Generate GraphQL Schema
 
 Run Graphqly with the required parameters.
 ```
-yarn graphqly run --definition ./def.d.ts --package ./package.json --destination ./out.gql --tsconfig tsconfig.json
+yarn graphqly run --definition ./def.ts --destination ./out.gql --tsconfig tsconfig.json
 ```
 ### Output
 
