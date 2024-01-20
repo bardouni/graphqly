@@ -28,5 +28,6 @@
   "files": [
     "bin/**/*",
     "dist/src/**/*"
-  ]
+  ],
+  "keywords": ["api", "graphql", "typescript", "generate", "sync"]
 }
