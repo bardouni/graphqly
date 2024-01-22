@@ -237,6 +237,18 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 				]
 			}
 		} else if (element.isObject()){
+			const declaration = element.getSymbol()!.getDeclarations()[0];
+			if(declaration){
+				if(declaration.getType().isClass()){
+					const name = declaration.getSymbol()!.getName();
+					return getFieldType(
+						name,
+						declaration.getType(),
+						nodeType,
+						published
+					);
+				}
+			}
 			if(element.getObjectFlags() === mo.ObjectFlags.Reference){
 				const sym = element.getSymbol()!;
 				const _name = sym.getName();
@@ -252,9 +264,9 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 				);
 			} else if (
 				(element.getObjectFlags() === mo.ObjectFlags.Anonymous) ||
-				(element.getAliasSymbol()) ||
-				mo.Node.isTypeLiteral(element.getSymbol()!.getDeclarations()[0]) ||
-				mo.Node.isObjectLiteralExpression(element.getSymbol()!.getDeclarations()[0])
+				element.getAliasSymbol() ||
+				mo.Node.isTypeLiteral(declaration) ||
+				mo.Node.isObjectLiteralExpression(declaration)
 			) {
 				let aliasSymbol = element.getAliasSymbol();
 				let _name = name;

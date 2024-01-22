@@ -6,11 +6,16 @@ export class Account extends Node {}
 export class Query {
   user: Node;
   static nodes = nodes;
+  static projects = projects;
 }
 
 export class User extends Node {}
 
 export class Project extends NonDef {}
+
+class Custom extends NonDef {
+	customField: string
+}
 
 export class Test extends Model{
 	id: string;
@@ -18,6 +23,16 @@ export class Test extends Model{
 
 export {Node, NonDef};
 
+type Ctx = {
+	models:{
+		Custom: typeof Custom
+	}
+};
+
 async function nodes(args: {ids: string[]}) : Promise<(Node|null)[]>{
 	return []
+}
+
+function projects(){
+	return [] as Ctx["models"]["Custom"][];
 }

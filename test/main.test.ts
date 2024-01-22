@@ -14,8 +14,13 @@ it('Node', function () {
 			type Query {
 				user: Node!
 				nodes(ids: [String!]!): [Node]!
+				projects: [Custom!]!
 			}
 			interface Node {
+				id: String!
+			}
+			type Custom implements NonDef {
+				customField: String!
 				id: String!
 			}
 			type User implements Node {
