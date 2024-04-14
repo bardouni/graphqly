@@ -87,7 +87,7 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 			  		if(callSig){
 			  			const [_type] = getFieldType(
 			  				name + "__" + field + suffixType(nodeType),
-			  				callSig.getReturnType(),
+			  				getPromiseValue(callSig.getReturnType()),
 			  				nodeType,
 			  				true
 			  			);
@@ -115,7 +115,7 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 		  			}
 		  		}
 		  	} else if (mo.Node.isMethodDeclaration(member)){
-		  		let returnType = member.getReturnType();
+		  		const returnType = getPromiseValue(member.getReturnType());
 		  		const sig = member.getSignature()!;
 		  		const params = handleParams(name + "__" + field + "Input", sig.getParameters());
 		  		const [_type] = getFieldType(name + "__" + field + suffixType(nodeType), returnType, nodeType, true)
@@ -250,15 +250,9 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 				}
 			}
 			if(element.getObjectFlags() === mo.ObjectFlags.Reference){
-				const sym = element.getSymbol()!;
-				const _name = sym.getName();
-				let _element: mo.Type = element;
-				if(_name === "Promise"){
-					_element = element.getTypeArguments()[0];
-				}
 				return getFieldType(
 					name,
-					_element,
+					getPromiseValue(element),
 					nodeType,
 					published
 				);
@@ -320,13 +314,6 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 		return [undefined];
 	}
 
-	return [
-		getFieldType,
-		function (){
-			return toString();
-		}
-	] as const;
-
 	function toString(){
 		// console.log(JSON.stringify(TypesRegistery.types, null, 2));
 		return TypesRegistery.types
@@ -380,8 +367,28 @@ export function handleDTS(program: ts.Program, checker: ts.TypeChecker){
 			}).concat(`scalar Any`).join("\n");
 	}
 
+	return [
+		getFieldType,
+		function (){
+			return toString();
+		}
+	] as const;
+
 }
 
+// TODO: the way this function is called results in duplicated code, would be better if we move the promise check to getFieldType element case
+function getPromiseValue(element: mo.Type){
+	const sym = element.getSymbol()!;
+	if(!sym){
+		return element;
+	}
+	const _name = sym.getName();
+	let _element: mo.Type = element;
+	if(_name === "Promise"){
+		_element = element.getTypeArguments()[0];
+	}
+	return _element;
+}
 
 export type Field = {
 	field: string
