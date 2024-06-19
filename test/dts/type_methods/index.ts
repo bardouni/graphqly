@@ -16,8 +16,8 @@ export class Query {
   custom(_: any, args: any){
   	return {} as Obj;
   }
-  static func = func;
-  static func2 = func2;
-  static func3 = func3;
+  func = func;
+  func2 = func2;
+  func3 = func3;
 };
 export {};

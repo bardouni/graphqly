@@ -8,6 +8,9 @@ class User {
   }
 }
 export class Query {
+	static field(){
+		return "hello world"
+	}
   user() {
   	return {} as User;
   };

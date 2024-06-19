@@ -5,8 +5,8 @@ export class Account extends Node {}
 
 export class Query {
   user: Node;
-  static nodes = nodes;
-  static projects = projects;
+  nodes = nodes;
+  projects = projects;
 }
 
 export class User extends Node {}

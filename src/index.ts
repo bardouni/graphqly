@@ -109,7 +109,10 @@ export default function transform(opts: TransformOptions){
   		}
   		TypesRegistery.types.push(graphqlType);
   		dec.getMembers().forEach(member => {
-  			if(mo.Node.isConstructorDeclaration(member)){
+  			if(
+  				mo.Node.isConstructorDeclaration(member) ||
+  				member.isStatic()
+  			){
   				return;
   			}
   			const field = member.getName();
