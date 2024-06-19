@@ -1,11 +1,11 @@
-export type AddUserArgs = {
+type AddUserArgs = {
   id: number;
   details: {
     age: number;
     name: string;
   };
 };
-export default class Mutation {
+export class Mutation {
   addUser(_: any, args: any){return true};
   addUser2(args: {
       id: number;

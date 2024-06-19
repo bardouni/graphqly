@@ -6,7 +6,7 @@ type Obj = {
 type Obj2 = {
   age: number;
 };
-export default class Query {
+export class Query {
     custom() {return {} as Obj};
     optionalCustom() {return {} as Obj | null};
 };

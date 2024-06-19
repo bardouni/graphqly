@@ -7,7 +7,7 @@ class User {
   	return [] as Like[];
   }
 }
-export default class Query {
+export class Query {
   user() {
   	return {} as User;
   };

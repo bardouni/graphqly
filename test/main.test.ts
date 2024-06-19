@@ -77,7 +77,6 @@ it('External', function () {
 	);
 });
 
-
 it('Scalars', function () {
 	let schema = transform({
 		definition: "./test/dts/scalars/index.ts",
@@ -207,9 +206,6 @@ it('Literals Type', function () {
 	});
 	expect(schema).toStrictEqual(
 		dedent`
-			type Query {
-				q: Obj!
-			}
 			type Obj {
 				name: String!
 				nested: Obj__nested!
@@ -220,6 +216,9 @@ it('Literals Type', function () {
 			}
 			type Obj__optionalNested {
 				field: String!
+			}
+			type Query {
+				q: Obj!
 			}
 			scalar Any
 		`

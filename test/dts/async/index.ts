@@ -1,7 +1,7 @@
 type Q = {
 	name: string;
 }
-export default class Query {
+export class Query {
 	string(){
 		return new Promise<string>(resolve => resolve(""));
 	};

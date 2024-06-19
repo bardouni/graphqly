@@ -7,7 +7,7 @@ export declare type Obj = {
     field: string;
   };
 };
-export default class Query {
+export class Query {
     q(){
     	return {} as Obj;
     };

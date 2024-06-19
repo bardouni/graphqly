@@ -401,22 +401,18 @@ export default function transform(opts: TransformOptions){
   }
 
   file.getExportedDeclarations().forEach(exp => {
-  	let cl = exp[0];
-  	if(mo.Node.isClassDeclaration(cl)){
-			const name = cl.getName()!;
-			if(
-				!["Mutation", "Query", "Subscription"].includes(name) &&
-	  		!cl.isExported()
-			){
-				return;
-			}
-			getFieldType(
-				name,
-				cl.getType(),
-				"type",
-				true
-			);
+  	let exported = exp[0];
+  	const symbol = exported.getSymbol();
+  	if(!symbol){
+  		return;
   	}
+  	const name = symbol.getName()!;
+  	getFieldType(
+  		name,
+  		exported.getType(),
+  		"type",
+  		true
+  	);
   });
 
   return toString();

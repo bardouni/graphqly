@@ -12,7 +12,7 @@ function func2(){
 function func3(){
 	return {} as Obj;
 };
-export default class Query {
+export class Query {
   custom(_: any, args: any){
   	return {} as Obj;
   }
