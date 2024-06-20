@@ -117,7 +117,7 @@ export default function transform(opts: TransformOptions){
   			}
   			const field = member.getName();
   	  	if(mo.Node.isPropertyDeclaration(member)){
-  	  		const initializer = member.getInitializer()!;
+  	  		const initializer = member.getInitializer();
   	  		if(initializer){
   		  		let callSig = initializer.getType().getCallSignatures()[0];
   		  		if(callSig){
@@ -344,7 +344,6 @@ export default function transform(opts: TransformOptions){
   			return [
   				returnedType
   			];
-  		} else if (element.getObjectFlags() === mo.ObjectFlags.ObjectLiteral){
   		}
   	}
   	return [undefined];
