@@ -123,7 +123,7 @@ export default function transform(opts: TransformOptions){
   		  		if(callSig){
   		  			const [_type] = getFieldType(
   		  				name + "__" + field + suffixType(nodeType),
-  		  				getPromiseValue(callSig.getReturnType()),
+  		  				callSig.getReturnType(),
   		  				nodeType,
   		  				true
   		  			);
@@ -151,7 +151,7 @@ export default function transform(opts: TransformOptions){
   	  			}
   	  		}
   	  	} else if (mo.Node.isMethodDeclaration(member)){
-  	  		const returnType = getPromiseValue(member.getReturnType());
+  	  		const returnType = member.getReturnType();
   	  		const sig = member.getSignature()!;
   	  		const params = handleParams(name + "__" + field + "Input", sig.getParameters());
   	  		const [_type] = getFieldType(name + "__" + field + suffixType(nodeType), returnType, nodeType, true)
@@ -273,7 +273,20 @@ export default function transform(opts: TransformOptions){
   			]
   		}
   	} else if (element.isObject()){
-  		const declaration = element.getSymbol()!.getDeclarations()[0];
+  		let symbol = element.getSymbol();
+  		if(symbol!.getName() === "Promise"){
+  			element = element.getTypeArguments()[0];
+  		}
+  		symbol = element.getSymbol();
+  		if(!symbol){
+				return getFieldType(
+					name,
+					element,
+					nodeType,
+					published
+				);
+  		}
+  		const declaration = symbol.getDeclarations()[0];
   		if(declaration){
   			if(declaration.getType().isClass()){
   				const name = declaration.getSymbol()!.getName();
@@ -288,7 +301,7 @@ export default function transform(opts: TransformOptions){
   		if(element.getObjectFlags() === mo.ObjectFlags.Reference){
   			return getFieldType(
   				name,
-  				getPromiseValue(element),
+  				element,
   				nodeType,
   				published
   			);
@@ -344,7 +357,6 @@ export default function transform(opts: TransformOptions){
   			return [
   				returnedType
   			];
-  		} else if (element.getObjectFlags() === mo.ObjectFlags.ObjectLiteral){
   		}
   	}
   	return [undefined];
@@ -420,21 +432,6 @@ export default function transform(opts: TransformOptions){
 
   return toString();
 
-}
-
-
-// TODO: the way this function is called results in duplicated code, would be better if we move the promise check to getFieldType element case
-function getPromiseValue(element: mo.Type){
-	const sym = element.getSymbol()!;
-	if(!sym){
-		return element;
-	}
-	const _name = sym.getName();
-	let _element: mo.Type = element;
-	if(_name === "Promise"){
-		_element = element.getTypeArguments()[0];
-	}
-	return _element;
 }
 
 export type Field = {
