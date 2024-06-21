@@ -78,8 +78,8 @@ export default function transform(opts: TransformOptions){
   	published: boolean
   ) : [Field["type"]]|[undefined] {
   	if (element.isClassOrInterface()){
-  		const sym = element.getSymbol();
-  		const dec = sym!.getDeclarations()[0] as mo.ClassDeclaration;
+  		const sym = element.getSymbol()!;
+  		const dec = sym.getDeclarations()[0] as mo.ClassDeclaration;
   		const name = dec.getName()!;
   		const graphqlType : GraphqlType = {
   			extends: undefined,
@@ -88,7 +88,7 @@ export default function transform(opts: TransformOptions){
   			name,
   			content: "",
   			published
-  		};
+  		}
   		const types = element.getBaseTypes();
   		if(types.length){
   			let name = types[0].getSymbol()!.getName();
@@ -116,52 +116,33 @@ export default function transform(opts: TransformOptions){
   				return;
   			}
   			const field = member.getName();
+  	  	let moType: mo.Type, params: GraphqlType|undefined;
   	  	if(mo.Node.isPropertyDeclaration(member)){
   	  		const initializer = member.getInitializer();
   	  		if(initializer){
-  		  		let callSig = initializer.getType().getCallSignatures()[0];
-  		  		if(callSig){
-  		  			const [_type] = getFieldType(
-  		  				name + "__" + field + suffixType(nodeType),
-  		  				getPromiseValue(callSig.getReturnType()),
-  		  				nodeType,
-  		  				true
-  		  			);
-  		  			const params = handleParams(name + "__" + field + "Input", callSig.getParameters());
-  		  			if(_type){
-  		  				graphqlType.fields.push({
-  		  					field: field,
-  		  					type: _type,
-  		  					paramsType: params
-  		  				});
-  		  			}
-  		  		}
+  	  			[moType, params] = getTypeFromCallSignature(initializer.getType(), field, name, handleParams);
   	  		} else {
-  	  			const [_type] = getFieldType(
-  	  				name + "__" + field + suffixType(nodeType),
-  	  				member.getType(),
-  	  				nodeType,
-  	  				true
-  	  			);
-  	  			if(_type){
-  	  				graphqlType.fields.push({
-  	  					field: field,
-  	  					type: _type,
-  	  				});
-  	  			}
+  	  			moType = member.getType();
   	  		}
   	  	} else if (mo.Node.isMethodDeclaration(member)){
-  	  		const returnType = getPromiseValue(member.getReturnType());
+  	  		moType = member.getReturnType();
   	  		const sig = member.getSignature()!;
-  	  		const params = handleParams(name + "__" + field + "Input", sig.getParameters());
-  	  		const [_type] = getFieldType(name + "__" + field + suffixType(nodeType), returnType, nodeType, true)
-  	  		if(_type){
-  		  		graphqlType.fields.push({
-  		  			field: field,
-  		  			type: _type,
-  		  			paramsType: params
-  		  		});
-  	  		}
+  	  		params = handleParams(name + "__" + field + "Input", sig.getParameters());
+  	  	} else {
+  	  		return [undefined]
+  	  	}
+  	  	const [_type] = getFieldType(
+  	  		name + "__" + field + suffixType(nodeType),
+  	  		moType,
+  	  		nodeType,
+  	  		true
+  	  	);
+  	  	if(_type){
+  	  		graphqlType.fields.push({
+  	  			field: field,
+  	  			type: _type,
+  	  			paramsType: params
+  	  		});
   	  	}
   		});
   		return [returnedType];
@@ -273,7 +254,19 @@ export default function transform(opts: TransformOptions){
   			]
   		}
   	} else if (element.isObject()){
-  		const declaration = element.getSymbol()!.getDeclarations()[0];
+  		const symbol = element.getSymbol();
+  		if(!symbol){
+  			return [undefined];
+  		}
+  		if(symbol.getName() === "Promise"){
+  			return getFieldType(
+  				name,
+  				element.getTypeArguments()[0],
+  				nodeType,
+  				published
+  			);
+  		}
+  		const declaration = symbol.getDeclarations()[0];
   		if(declaration){
   			if(declaration.getType().isClass()){
   				const name = declaration.getSymbol()!.getName();
@@ -288,7 +281,7 @@ export default function transform(opts: TransformOptions){
   		if(element.getObjectFlags() === mo.ObjectFlags.Reference){
   			return getFieldType(
   				name,
-  				getPromiseValue(element),
+  				element,
   				nodeType,
   				published
   			);
@@ -299,21 +292,21 @@ export default function transform(opts: TransformOptions){
   			mo.Node.isObjectLiteralExpression(declaration)
   		) {
   			let aliasSymbol = element.getAliasSymbol();
-  			let _name = name;
+  			let typeName = name;
   			if(aliasSymbol){
-  				_name = aliasSymbol.getName();
+  				typeName = aliasSymbol.getName();
   			}
   			const graphqlType : GraphqlType = {
   				extends: undefined,
   				type: nodeType,
   				fields: [],
-  				name: _name,
+  				name: typeName,
   				content: "",
   				published
   			};
   			let returnedType = {
-  				value: _name,
-  				label: _name,
+  				value: typeName,
+  				label: typeName,
   				isRequired: true
   			};
   			if(TypesRegistery.types.some(type => type.name === graphqlType.name)){
@@ -324,14 +317,8 @@ export default function transform(opts: TransformOptions){
   				const field = property.getName();
   			  const declaration = property.getDeclarations()[0];
   			  if(declaration){
-  			  	let propertyType = declaration.getType();
-  			  	const callSig = propertyType.getCallSignatures()[0];
-  			  	let paramsType: GraphqlType|undefined;
-  			  	if(callSig){
-  			  		propertyType = callSig.getReturnType();
-  			  		paramsType = handleParams(name + "__" + field + "Input", callSig.getParameters());
-  			  	}
-  			  	const [_type] = getFieldType(_name + "__" + field + suffixType(nodeType), propertyType, nodeType, true);
+  			  	let [propertyType, paramsType] = getTypeFromCallSignature(declaration.getType(), field, name, handleParams);
+  			  	const [_type] = getFieldType(typeName + "__" + field + suffixType(nodeType), propertyType, nodeType, true);
   	  	  	if(_type){
   	  				graphqlType.fields.push({
   	  					field: field,
@@ -421,19 +408,14 @@ export default function transform(opts: TransformOptions){
 
 }
 
-
-// TODO: the way this function is called results in duplicated code, would be better if we move the promise check to getFieldType element case
-function getPromiseValue(element: mo.Type){
-	const sym = element.getSymbol()!;
-	if(!sym){
-		return element;
+function getTypeFromCallSignature(propertyType: mo.Type, field: string, name: string, handleParams: (name: string, params: mo.Symbol[]|null) => GraphqlType|undefined){
+	const callSig = propertyType.getCallSignatures()[0];
+  let paramsType: GraphqlType|undefined;
+	if(callSig){
+		propertyType = callSig.getReturnType();
+		paramsType = handleParams(name + "__" + field + "Input", callSig.getParameters());
 	}
-	const _name = sym.getName();
-	let _element: mo.Type = element;
-	if(_name === "Promise"){
-		_element = element.getTypeArguments()[0];
-	}
-	return _element;
+	return [propertyType, paramsType] as const;
 }
 
 export type Field = {
