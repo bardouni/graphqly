@@ -40,6 +40,23 @@ it('Node', function () {
 	);
 });
 
+
+it('Custom Scalars', function () {
+	let schema = transform({
+		definition: "./test/dts/opaque/index.ts",
+		tsconfig: "./test/dts/tsconfig.json"
+	});
+	expect(schema).toStrictEqual(
+		dedent`
+			type Query {
+				test: Int!
+				testID: ID!
+			}
+			scalar Any
+		`
+	);
+});
+
 it('External', function () {
 	let schema = transform({
 		definition: "./test/dts/external/index.ts",

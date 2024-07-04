@@ -332,6 +332,25 @@ export default function transform(opts: TransformOptions){
   				returnedType
   			];
   		}
+  	} else if (element.isIntersection()){
+  		const types = element.getIntersectionTypes();
+  		for(let i =0; i < types.length; i++){
+  			let type = types[i];
+  			if(type.isObject()){
+  				let property = type.getProperty("__gqly_type__")!;
+  				let value = property.getValueDeclaration()!.getType().getLiteralValue();
+  				if(typeof value === "string"){
+  					return [
+  						{
+  							label: value,
+  							value: value,
+  							isRequired: true,
+  						}
+  					];
+  				}
+  				break;
+  			}
+  		}
   	}
   	return [undefined];
   }
