@@ -35,11 +35,9 @@ it('Node', function () {
 			interface NonDef {
 				id: String!
 			}
-			scalar Any
 		`
 	);
 });
-
 
 it('Custom Scalars', function () {
 	let schema = transform({
@@ -52,7 +50,6 @@ it('Custom Scalars', function () {
 				test: Int!
 				testID: ID!
 			}
-			scalar Any
 		`
 	);
 });
@@ -89,7 +86,6 @@ it('External', function () {
 				endCursor: String
 				hasNextPage: Boolean!
 			}
-			scalar Any
 		`
 	);
 });
@@ -108,7 +104,7 @@ it('Scalars', function () {
 				float: Float!
 				optional: Boolean
 				optionalUsingUndefined: String
-				any: Any
+				any: Query__any
 			}
 			type Mutation {
 				addUser: Mutation__addUser!
@@ -116,7 +112,7 @@ it('Scalars', function () {
 			type Mutation__addUser {
 				msg: String!
 			}
-			scalar Any
+			scalar Query__any
 		`
 	);
 });
@@ -139,7 +135,6 @@ it('Class', function () {
 			type Like {
 				from: String!
 			}
-			scalar Any
 		`
 	);
 });
@@ -153,7 +148,6 @@ it('Async', function () {
 		dedent`
 			type Query {
 				string: String!
-				void: Any
 				type: Q!
 				literal: Query__literal!
 			}
@@ -163,7 +157,6 @@ it('Async', function () {
 			type Query__literal {
 				a: String!
 			}
-			scalar Any
 		`
 	);
 });
@@ -187,7 +180,6 @@ it('Custom type', function () {
 			type Obj2 {
 				age: Float!
 			}
-			scalar Any
 		`
 	);
 });
@@ -211,7 +203,6 @@ it('Type methods', function () {
 			type Query__func2 {
 				name: String!
 			}
-			scalar Any
 		`
 	);
 });
@@ -237,7 +228,6 @@ it('Literals Type', function () {
 			type Query {
 				q: Obj!
 			}
-			scalar Any
 		`
 	);
 });
@@ -255,7 +245,6 @@ it('Local Literal Type', function () {
 			type Query__q {
 				name: String!
 			}
-			scalar Any
 		`
 	);
 });
@@ -268,9 +257,9 @@ it('Assign args', function () {
 	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
-				q(msg: String!): Any
+				q(msg: String!): Query__q
 			}
-			scalar Any
+			scalar Query__q
 		`
 	);
 });
@@ -281,16 +270,7 @@ it('empty', function () {
 		tsconfig: "./test/dts/tsconfig.json"
 	});
 	expect(schema).toStrictEqual(
-		dedent`
-			type Query {
-				null: Any
-				undefined: Any
-				void: Any
-				emptyReturn: Any
-				explicitNullOrUndefined: Any
-			}
-			scalar Any
-		`
+		dedent``
 	);
 });
 
@@ -306,9 +286,6 @@ it('Arguments', function () {
 				addUser2(id: Float!, details: Mutation__addUser2Input__detailsInput!): Boolean!
 				addUser3(id: Float!, details: AddUserArgs__detailsInput!): Boolean!
 				addUser4(name: String!, age: Float!): Boolean!
-				arrayParams: Any
-				assignSimpleParam: Any
-				restParam: Any
 			}
 			input Mutation__addUser2Input__detailsInput {
 				age: Float!
@@ -318,7 +295,6 @@ it('Arguments', function () {
 				age: Float!
 				name: String!
 			}
-			scalar Any
 		`
 	);
 });

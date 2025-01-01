@@ -1,14 +1,12 @@
 type Obj = {
   name: number
 }
-function func(params: {
-    id: number;
-}){
+function func(params: {id: number;}){
 	return "omse";
-};
+}
 function func2(){
 	return {name: "string"}
-};
+}
 function func3(){
 	return {} as Obj;
 };

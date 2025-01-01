@@ -20,8 +20,6 @@ export default function transform(opts: TransformOptions){
 	const program = ts.createProgram(parsed.fileNames, parsed.options);
 	const checker = program.getTypeChecker();
 
-	// const files = program.getRootFileNames();
-
 	const def = path.resolve(cwd, opts.definition);
 
   const sourceFile = program.getSourceFile(def);
@@ -39,6 +37,7 @@ export default function transform(opts: TransformOptions){
   class TypesRegistery {
   	static types = [] as GraphqlType[];
   	static interface = [] as string[];
+  	static scalars = [] as string[];
   	static findType(name: string){
   		return TypesRegistery.types.find(t => t.name === name)!;
   	}
@@ -137,7 +136,7 @@ export default function transform(opts: TransformOptions){
   	  		nodeType,
   	  		true
   	  	);
-  	  	if(_type){
+  	  	if(_type && _type.value !== "null"){
   	  		graphqlType.fields.push({
   	  			field: field,
   	  			type: _type,
@@ -148,51 +147,32 @@ export default function transform(opts: TransformOptions){
   		return [returnedType];
   	} else if (element.isUnion()){
   		let types = element.getUnionTypes()
-  			.map(type => getFieldType(name, type, nodeType, published))
-  			.map(item => item[0])
+  			.map(type => getFieldType(name, type, nodeType, published)[0])
   			.filter(
-  				(e, index, list) => {
+  				function (e, index, list) {
   					let _index = list.findIndex(em => em?.value === e?.value);
   					return index === _index;
   				}
-  			)
+  			);
   		// filter non known types
   		if(types.some(type => type === undefined)){
   			return [undefined];
   		}
-  		if(types.some(type => type!.value === "Any")){
-  			return [
-  				{
-  					value: "Any",
-  					label: "Any",
-  					isRequired: false
-  				}
-  			];
-  		}
-  		let nonNullTypes = types.filter(t => !["null", "undefined"].some(_t => _t === t!.value));
+  		let nonNullTypes = types.filter(t => t!.value !== "null");
   		if(nonNullTypes.length > 1){
   			// to create gql union type of the types
-  			throw "multiple types response is not supported, please open an issue.";
+  			throw new Error("multiple types response is not supported, please open an issue.");
   		} else if (nonNullTypes.length === 0){
-  			return [
-  				{
-  					value: "Any",
-  					label: "Any",
-  					isRequired: false
-  				}
-  			];
+  			// shouln't have a field that returns no type
+  			return [undefined];
   		}
-  		let nullTypes = types.filter(t => ["null", "undefined"].some(_t => _t === t!.value));
-  		if(nullTypes.length){
-  			return [
-  				{
-  					value: nonNullTypes[0]!.value,
-  					label: nonNullTypes[0]!.label,
-  					isRequired: false
-  				}
-  			];
-  		}
-  		return [nonNullTypes[0]];
+			return [
+				{
+					value: nonNullTypes[0]!.value,
+					label: nonNullTypes[0]!.label,
+					isRequired: nonNullTypes.length === types.length
+				}
+			];
   	} else if (element.isBoolean() || element.isBooleanLiteral()){
   		return [
   			{
@@ -217,27 +197,26 @@ export default function transform(opts: TransformOptions){
   				isRequired: true,
   			}
   		];
-  	} else if (element.isVoid()){
+  	} else if (
+  		element.isVoid() ||
+  		element.isUndefined() ||
+  		element.isNull()
+  	){
   		return [
   			{
   				value: "null",
-  				label: "Any",
-  				isRequired: false,
-  			}
-  		];
-  	} else if (element.isUndefined() || element.isNull()){
-  		return [
-  			{
-  				value: "null",
-  				label: "Any",
+  				label: "Null",
   				isRequired: false,
   			}
   		];
   	} else if (element.isAny()){
+  		if(published){
+	  		TypesRegistery.scalars.push(name);
+  		}
   		return [
   			{
-  				value: "Any",
-  				label: "Any",
+  				value: name,
+  				label: name,
   				isRequired: false,
   			}
   		];
@@ -246,8 +225,8 @@ export default function transform(opts: TransformOptions){
   		if(type){
   			return [
   				{
-  					label: `[${type.value}${type.isRequired ? "!" : ""}]`,
-  					value: `[${type.label}${type.isRequired ? "!" : ""}]`,
+  					label: `[${type.label}${type.isRequired ? "!" : ""}]`,
+  					value: `[${type.value}${type.isRequired ? "!" : ""}]`,
   					isArray: true,
   					isRequired: true
   				}
@@ -356,7 +335,6 @@ export default function transform(opts: TransformOptions){
   }
 
   function toString(){
-  	// console.log(JSON.stringify(TypesRegistery.types, null, 2));
   	return TypesRegistery.types
   		.filter(type => {
   			return type.published;
@@ -377,6 +355,12 @@ export default function transform(opts: TransformOptions){
   				(_interface = TypesRegistery.types.find(t => t.name === type.extends))
   			){
   				output += ` implements ${type.extends}`;
+  			}
+  			if(
+  				type.fields.length === 0 &&
+  				!_interface
+  			){
+  				return "";
   			}
   			output += " {\n";
   			output += (
@@ -405,7 +389,13 @@ export default function transform(opts: TransformOptions){
   				"\n}"
   			);
   			return output;
-  		}).concat(`scalar Any`).join("\n");
+  		})
+  		.concat(
+  			TypesRegistery.scalars.map(s => {
+  				return `scalar ${s}`;
+  			})
+  		)
+  		.join("\n");
   }
 
   file.getExportedDeclarations().forEach(exp => {
