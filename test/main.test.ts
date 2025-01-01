@@ -47,7 +47,7 @@ it('Custom Scalars', function () {
 	expect(schema).toStrictEqual(
 		dedent`
 			type Query {
-				test: Int!
+				test(first: Int!): Int!
 				testID: ID!
 			}
 		`
